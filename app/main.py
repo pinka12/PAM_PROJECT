@@ -1253,6 +1253,8 @@ async def _generate_manager_report(company_id: str, manager_name: str, force_ref
 
     existing = await async_saas_reports.find_one({"company_id": company_id, "manager_name": manager_name})
     if existing and not force_refresh:
+        if "_id" in existing:
+            existing["_id"] = str(existing["_id"])
         return existing
 
     averages = manager.get("category_averages", {})

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PAM Company Dashboard</title>
+    <title>MAP Company Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap');
@@ -102,13 +102,6 @@
             font-weight: 600;
         }
 
-        .user-email {
-            color: var(--primary-dark);
-            font-weight: 700;
-            margin-right: 12px;
-            font-size: 16px;
-        }
-
         .stat-card {
             background: var(--surface);
             border-radius: 18px;
@@ -172,6 +165,10 @@
             border-spacing: 0 12px;
         }
 
+        .company-table .table-responsive {
+            overflow: visible;
+        }
+
         .company-table tbody tr {
             background: #f3f4f6;
             border-radius: 12px;
@@ -191,6 +188,7 @@
             padding: 18px 16px;
             font-size: 18px;
             font-weight: 600;
+            overflow: visible;
         }
 
         .company-table tbody .text-muted {
@@ -198,17 +196,110 @@
             font-weight: 600;
         }
 
-        .score-bar {
-            height: 8px;
-            border-radius: 999px;
-            background: #e2e8f0;
-            overflow: hidden;
+        .score-chart-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 200px;
         }
 
-        .score-fill { height: 100%; }
-        .score-trusting { background: #10b981; }
-        .score-tasking { background: #3b82f6; }
-        .score-tending { background: #f59e0b; }
+        .score-chart {
+            position: relative;
+            width: 190px;
+            height: 170px;
+            overflow: visible;
+        }
+
+        .score-base svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .score-popup {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.85);
+            opacity: 0;
+            pointer-events: none;
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 12px;
+            box-shadow: 0 20px 45px rgba(15, 23, 42, 0.18);
+            border: 1px solid #e2e8f0;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            z-index: 5;
+        }
+
+        .score-popup svg {
+            width: 260px;
+            height: 230px;
+            display: block;
+        }
+
+        .popup-values {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .score-chart:hover .score-popup {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .tri-segment {
+            transition: transform 0.2s ease, filter 0.2s ease;
+            transform-box: fill-box;
+            transform-origin: center;
+            cursor: pointer;
+        }
+
+        .tri-segment:hover {
+            transform: scale(1.08);
+            filter: drop-shadow(0 6px 12px rgba(15, 23, 42, 0.18));
+        }
+
+        .tri-text {
+            font-size: 11px;
+            font-weight: 700;
+            fill: #0f172a;
+            pointer-events: none;
+        }
+
+        .tri-label {
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            fill: #475569;
+            pointer-events: none;
+        }
+
+        .score-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--muted);
+        }
+
+        .legend-dot {
+            display: inline-block;
+            width: 9px;
+            height: 9px;
+            border-radius: 999px;
+            margin-right: 6px;
+        }
+
+        .legend-trusting { background: #10b981; }
+        .legend-tasking { background: #3b82f6; }
+        .legend-tending { background: #f59e0b; }
 
         .btn-primary {
             background: var(--primary);
@@ -236,7 +327,7 @@
 <body>
     <div class="layout">
         <aside class="sidenav">
-            <div class="brand">PAM Dashboard</div>
+            <div class="brand">MAP Dashboard</div>
             <a class="nav-item active" href="/dashboard">Dashboard</a>
             <a class="nav-item" href="/company/new">Add Company</a>
             <div class="sidenav-footer mt-4">
@@ -251,7 +342,6 @@
                     <div class="page-subtitle">Unified view of assessment activity across all organizations.</div>
                 </div>
                 <div class="d-flex align-items-center">
-                    <span class="user-email">{{ user.email }}</span>
                     <a class="btn btn-outline-primary btn-sm" href="/logout">Logout</a>
                 </div>
             </div>
@@ -422,6 +512,7 @@
             }
             body.innerHTML = companies.map(company => {
                 const scores = company.avg_scores || {trusting: 0, tasking: 0, tending: 0};
+                const chartId = `score-chart-${company.id || company.slug}`;
                 return `
                     <tr>
                         <td>
@@ -431,12 +522,14 @@
                         <td>${company.manager_count}</td>
                         <td>${company.assessment_count}</td>
                         <td>
-                            <div class="small text-muted">Trusting ${scores.trusting}</div>
-                            <div class="score-bar mb-1"><div class="score-fill score-trusting" style="width:${scores.trusting * 10}%"></div></div>
-                            <div class="small text-muted">Tasking ${scores.tasking}</div>
-                            <div class="score-bar mb-1"><div class="score-fill score-tasking" style="width:${scores.tasking * 10}%"></div></div>
-                            <div class="small text-muted">Tending ${scores.tending}</div>
-                            <div class="score-bar"><div class="score-fill score-tending" style="width:${scores.tending * 10}%"></div></div>
+                            <div class="score-chart-wrap">
+                                <div id="${chartId}" class="score-chart"></div>
+                                <div class="score-legend">
+                                    <span><span class="legend-dot legend-trusting"></span>Trusting ${scores.trusting}</span>
+                                    <span><span class="legend-dot legend-tasking"></span>Tasking ${scores.tasking}</span>
+                                    <span><span class="legend-dot legend-tending"></span>Tending ${scores.tending}</span>
+                                </div>
+                            </div>
                         </td>
                         <td>
                             <a class="btn btn-sm btn-outline-primary me-1" href="/company/${company.id}">View</a>
@@ -445,6 +538,99 @@
                     </tr>
                 `;
             }).join('');
+            renderScoreCharts(companies);
+        }
+
+        function renderScoreCharts(companies) {
+            companies.forEach(company => {
+                const chartId = `score-chart-${company.id || company.slug}`;
+                const el = document.getElementById(chartId);
+                if (!el) {
+                    return;
+                }
+                const scores = company.avg_scores || {trusting: 0, tasking: 0, tending: 0};
+                const trusting = clampScore(scores.trusting);
+                const tasking = clampScore(scores.tasking);
+                const tending = clampScore(scores.tending);
+                el.innerHTML = triangleChartMarkup(trusting, tasking, tending, 190, 170, 260, 230);
+            });
+        }
+
+        function triangleChartMarkup(trusting, tasking, tending, width, height, popupWidth, popupHeight) {
+            const baseSvg = triangleChartSvg(trusting, tasking, tending, width, height, 14);
+            const popupSvg = triangleChartSvg(trusting, tasking, tending, popupWidth, popupHeight, 18);
+            return `
+                <div class="score-base">${baseSvg}</div>
+                <div class="score-popup">
+                    ${popupSvg}
+                    <div class="popup-values">
+                        <span>Trusting ${trusting}</span>
+                        <span>Tasking ${tasking}</span>
+                        <span>Tending ${tending}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function triangleChartSvg(trusting, tasking, tending, width, height, pad) {
+            const top = { x: width / 2, y: pad };
+            const left = { x: pad, y: height - pad };
+            const right = { x: width - pad, y: height - pad };
+            const center = {
+                x: (top.x + left.x + right.x) / 3,
+                y: (top.y + left.y + right.y) / 3
+            };
+            const trustCenter = centroid(top, left, center);
+            const taskCenter = centroid(top, right, center);
+            const tendCenter = centroid(left, right, center);
+            return `
+                <svg viewBox="0 0 ${width} ${height}" aria-label="Scores triangle chart">
+                    <polygon points="${top.x},${top.y} ${left.x},${left.y} ${right.x},${right.y}"
+                        fill="none" stroke="#cbd5f5" stroke-width="2" />
+                    <polygon class="tri-segment" points="${top.x},${top.y} ${left.x},${left.y} ${center.x},${center.y}"
+                        fill="rgba(16,185,129,0.75)">
+                        <title>Trusting: ${trusting}</title>
+                    </polygon>
+                    <polygon class="tri-segment" points="${top.x},${top.y} ${center.x},${center.y} ${right.x},${right.y}"
+                        fill="rgba(59,130,246,0.75)">
+                        <title>Tasking: ${tasking}</title>
+                    </polygon>
+                    <polygon class="tri-segment" points="${left.x},${left.y} ${center.x},${center.y} ${right.x},${right.y}"
+                        fill="rgba(245,158,11,0.8)">
+                        <title>Tending: ${tending}</title>
+                    </polygon>
+                    <text class="tri-text" x="${trustCenter.x}" y="${trustCenter.y}" text-anchor="middle" dominant-baseline="middle">
+                        ${trusting}
+                    </text>
+                    <text class="tri-label" x="${trustCenter.x}" y="${trustCenter.y + 12}" text-anchor="middle" dominant-baseline="middle">
+                        Trusting
+                    </text>
+                    <text class="tri-text" x="${taskCenter.x}" y="${taskCenter.y}" text-anchor="middle" dominant-baseline="middle">
+                        ${tasking}
+                    </text>
+                    <text class="tri-label" x="${taskCenter.x}" y="${taskCenter.y + 12}" text-anchor="middle" dominant-baseline="middle">
+                        Tasking
+                    </text>
+                    <text class="tri-text" x="${tendCenter.x}" y="${tendCenter.y}" text-anchor="middle" dominant-baseline="middle">
+                        ${tending}
+                    </text>
+                    <text class="tri-label" x="${tendCenter.x}" y="${tendCenter.y + 12}" text-anchor="middle" dominant-baseline="middle">
+                        Tending
+                    </text>
+                </svg>
+            `;
+        }
+
+        function centroid(a, b, c) {
+            return {
+                x: (a.x + b.x + c.x) / 3,
+                y: (a.y + b.y + c.y) / 3
+            };
+        }
+
+        function clampScore(value) {
+            const safe = Number(value || 0);
+            return Math.max(0, Math.min(10, safe));
         }
 
         function onSearch(e) {

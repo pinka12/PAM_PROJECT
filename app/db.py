@@ -105,7 +105,7 @@ async def init_database():
         # Create indexes
         create_indexes()
         # Create or update admin user
-        admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
+        admin_email = (os.getenv("ADMIN_EMAIL") or "").strip().lower()
         admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
 
         if admin_email:

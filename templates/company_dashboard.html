@@ -83,13 +83,6 @@
             margin-bottom: 24px;
         }
 
-        .user-email {
-            color: #1d4ed8;
-            font-weight: 700;
-            margin-right: 10px;
-            font-size: 16px;
-        }
-
         .hero-card {
             background: var(--surface);
             border-radius: 20px;
@@ -154,6 +147,10 @@
             border: 1px solid #eef2f7;
         }
 
+        .table-responsive {
+            overflow: visible;
+        }
+
         .btn-primary {
             background: var(--accent);
             border: none;
@@ -192,6 +189,87 @@
             margin: 4px 6px 0 0;
         }
 
+        .score-chart {
+            position: relative;
+            width: 190px;
+            height: 170px;
+            overflow: visible;
+        }
+
+        .score-base svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .score-popup {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.85);
+            opacity: 0;
+            pointer-events: none;
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 12px;
+            box-shadow: 0 20px 45px rgba(15, 23, 42, 0.18);
+            border: 1px solid #e2e8f0;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            z-index: 5;
+        }
+
+        .score-popup svg {
+            width: 260px;
+            height: 230px;
+            display: block;
+        }
+
+        .popup-values {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .score-chart:hover .score-popup {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .tri-segment {
+            transition: transform 0.2s ease, filter 0.2s ease;
+            transform-box: fill-box;
+            transform-origin: center;
+            cursor: pointer;
+        }
+
+        .tri-segment:hover {
+            transform: scale(1.08);
+            filter: drop-shadow(0 6px 12px rgba(15, 23, 42, 0.18));
+        }
+
+        .tri-text {
+            font-size: 11px;
+            font-weight: 700;
+            fill: #0f172a;
+            pointer-events: none;
+        }
+
+        .tri-label {
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            fill: #475569;
+            pointer-events: none;
+        }
+
+        .table td {
+            overflow: visible;
+        }
+
         @media (max-width: 992px) {
             .layout { flex-direction: column; }
             .sidenav { width: 100%; position: static; }
@@ -201,7 +279,7 @@
 <body>
     <div class="layout">
         <aside class="sidenav">
-            <div class="brand">PAM Dashboard</div>
+            <div class="brand">MAP Dashboard</div>
             <a class="nav-item active" href="/dashboard">Dashboard</a>
             <a class="nav-item" href="/company/new">Add Company</a>
             <a class="nav-item" href="/logout">Logout</a>
@@ -214,7 +292,6 @@
                     <div class="hero-subtitle">Slug: {{ company.slug }}</div>
                 </div>
                 <div class="d-flex align-items-center flex-wrap gap-2">
-                    <span class="user-email">{{ user.email }}</span>
                     <a class="btn btn-outline-secondary" href="/dashboard">Back</a>
                     <a class="btn btn-primary" href="/form/{{ company.slug }}" target="_blank">Open Assessment Form</a>
                 </div>
@@ -361,15 +438,13 @@
                                     <th>Manager</th>
                                     <th>Reports To</th>
                                     <th>Assessments</th>
-                                    <th>Trusting</th>
-                                    <th>Tasking</th>
-                                    <th>Tending</th>
+                                    <th>Scores</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="managersTableBody">
                                 <tr>
-                                    <td colspan="7" class="text-center text-muted">Loading...</td>
+                                    <td colspan="5" class="text-center text-muted">Loading...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -447,20 +522,19 @@
             if (!data.success) return;
             const body = document.getElementById('managersTableBody');
             if (!data.managers.length) {
-                body.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No managers yet.</td></tr>';
+                body.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No managers yet.</td></tr>';
                 return;
             }
             body.innerHTML = data.managers.map(manager => {
                 const scores = manager.category_averages || {trusting: 0, tasking: 0, tending: 0};
+                const chartId = `manager-score-${manager.id || manager.manager_name}`;
                 const managerName = encodeURIComponent(manager.manager_name);
                 return `
                     <tr>
                         <td>${manager.manager_name}</td>
                         <td>${manager.reporting_to || '-'}</td>
                         <td>${manager.total_assessments || 0}</td>
-                        <td>${scores.trusting || 0}</td>
-                        <td>${scores.tasking || 0}</td>
-                        <td>${scores.tending || 0}</td>
+                        <td><div id="${chartId}" class="score-chart"></div></td>
                         <td>
                             <a class="btn btn-sm btn-outline-primary me-1" href="/company/${companyId}/manager/${managerName}">View</a>
                             <a class="btn btn-sm btn-outline-success" href="/api/companies/${companyId}/manager/${managerName}/report.pdf">Download</a>
@@ -468,6 +542,7 @@
                     </tr>
                 `;
             }).join('');
+            renderManagerCharts(data.managers);
         }
 
         async function loadHierarchy() {
@@ -510,6 +585,96 @@
                 return `<li><div class="node">${label}</div>${children}</li>`;
             }).join('');
             return `<ul>${list}</ul>`;
+        }
+
+        function renderManagerCharts(managers) {
+            managers.forEach(manager => {
+                const chartId = `manager-score-${manager.id || manager.manager_name}`;
+                const el = document.getElementById(chartId);
+                if (!el) return;
+                const scores = manager.category_averages || {trusting: 0, tasking: 0, tending: 0};
+                const trusting = clampScore(scores.trusting);
+                const tasking = clampScore(scores.tasking);
+                const tending = clampScore(scores.tending);
+                el.innerHTML = triangleChartMarkup(trusting, tasking, tending, 190, 170, 260, 230);
+            });
+        }
+
+        function triangleChartMarkup(trusting, tasking, tending, width, height, popupWidth, popupHeight) {
+            const baseSvg = triangleChartSvg(trusting, tasking, tending, width, height, 14);
+            const popupSvg = triangleChartSvg(trusting, tasking, tending, popupWidth, popupHeight, 18);
+            return `
+                <div class="score-base">${baseSvg}</div>
+                <div class="score-popup">
+                    ${popupSvg}
+                    <div class="popup-values">
+                        <span>Trusting ${trusting}</span>
+                        <span>Tasking ${tasking}</span>
+                        <span>Tending ${tending}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function triangleChartSvg(trusting, tasking, tending, width, height, pad) {
+            const top = { x: width / 2, y: pad };
+            const left = { x: pad, y: height - pad };
+            const right = { x: width - pad, y: height - pad };
+            const center = {
+                x: (top.x + left.x + right.x) / 3,
+                y: (top.y + left.y + right.y) / 3
+            };
+            const trustCenter = centroid(top, left, center);
+            const taskCenter = centroid(top, right, center);
+            const tendCenter = centroid(left, right, center);
+            return `
+                <svg viewBox="0 0 ${width} ${height}" aria-label="Scores triangle chart">
+                    <polygon points="${top.x},${top.y} ${left.x},${left.y} ${right.x},${right.y}"
+                        fill="none" stroke="#cbd5f5" stroke-width="2" />
+                    <polygon class="tri-segment" points="${top.x},${top.y} ${left.x},${left.y} ${center.x},${center.y}"
+                        fill="rgba(16,185,129,0.75)">
+                        <title>Trusting: ${trusting}</title>
+                    </polygon>
+                    <polygon class="tri-segment" points="${top.x},${top.y} ${center.x},${center.y} ${right.x},${right.y}"
+                        fill="rgba(59,130,246,0.75)">
+                        <title>Tasking: ${tasking}</title>
+                    </polygon>
+                    <polygon class="tri-segment" points="${left.x},${left.y} ${center.x},${center.y} ${right.x},${right.y}"
+                        fill="rgba(245,158,11,0.8)">
+                        <title>Tending: ${tending}</title>
+                    </polygon>
+                    <text class="tri-text" x="${trustCenter.x}" y="${trustCenter.y}" text-anchor="middle" dominant-baseline="middle">
+                        ${trusting}
+                    </text>
+                    <text class="tri-label" x="${trustCenter.x}" y="${trustCenter.y + 12}" text-anchor="middle" dominant-baseline="middle">
+                        Trusting
+                    </text>
+                    <text class="tri-text" x="${taskCenter.x}" y="${taskCenter.y}" text-anchor="middle" dominant-baseline="middle">
+                        ${tasking}
+                    </text>
+                    <text class="tri-label" x="${taskCenter.x}" y="${taskCenter.y + 12}" text-anchor="middle" dominant-baseline="middle">
+                        Tasking
+                    </text>
+                    <text class="tri-text" x="${tendCenter.x}" y="${tendCenter.y}" text-anchor="middle" dominant-baseline="middle">
+                        ${tending}
+                    </text>
+                    <text class="tri-label" x="${tendCenter.x}" y="${tendCenter.y + 12}" text-anchor="middle" dominant-baseline="middle">
+                        Tending
+                    </text>
+                </svg>
+            `;
+        }
+
+        function centroid(a, b, c) {
+            return {
+                x: (a.x + b.x + c.x) / 3,
+                y: (a.y + b.y + c.y) / 3
+            };
+        }
+
+        function clampScore(value) {
+            const safe = Number(value || 0);
+            return Math.max(0, Math.min(10, safe));
         }
     </script>
 </body>
