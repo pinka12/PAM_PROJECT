@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hierarchy Visualization - 360° Assessment</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        :root {
+            --primary: #667eea;
+            --secondary: #764ba2;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .navbar-custom {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .visualization-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            border: none;
+        }
+        
+        .chart-container {
+            height: 600px;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .legend-item {
+            display: inline-flex;
+            align-items: center;
+            margin-right: 20px;
+            margin-bottom: 10px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            margin-right: 8px;
+        }
+        
+        .manager-node {
+            padding: 10px 15px;
+            background: white;
+            border-radius: 8px;
+            margin: 5px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            border-left: 4px solid var(--primary);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .manager-node:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        }
+        
+        .btn-gradient {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+            color: white;
+        }
+        
+        .stats-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            border-left: 4px solid;
+        }
+        
+        .stats-card.trusting { border-left-color: #10b981; }
+        .stats-card.tasking { border-left-color: #3b82f6; }
+        .stats-card.tending { border-left-color: #f59e0b; }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/">
+                <i class="fas fa-chart-network me-2"></i>360° Manager Assessment
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">
+                    <i class="fas fa-tachometer-alt me-1"></i> Dashboard
+                </a>
+                <a class="nav-link active" href="/visualization">
+                    <i class="fas fa-chart-bar me-1"></i> Visualizations
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="visualization-card">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h1 class="h2 fw-bold mb-2">Organizational Hierarchy Visualization</h1>
+                            <p class="text-muted mb-0">Interactive visualization of manager hierarchy with performance scores</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <button class="btn btn-gradient" onclick="loadHierarchy()">
+                                <i class="fas fa-sync-alt me-2"></i>Refresh
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="row mb-4" id="statsContainer">
+            <!-- Stats will be loaded here -->
+        </div>
+
+        <!-- Legend -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="visualization-card">
+                    <h5 class="fw-bold mb-3"><i class="fas fa-key me-2"></i>Legend</h5>
+                    <div class="d-flex flex-wrap">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #10b981;"></div>
+                            <span><strong>High Score</strong> (≥7/10)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #f59e0b;"></div>
+                            <span><strong>Medium Score</strong> (5-7/10)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #ef4444;"></div>
+                            <span><strong>Low Score</strong> (<5/10)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #667eea; width: 30px;"></div>
+                            <span><strong>Node Size:</strong> Larger = More Direct Reports</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hierarchy Chart -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="visualization-card">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold mb-0"><i class="fas fa-sitemap me-2"></i>Organizational Hierarchy Chart</h5>
+                        <div class="btn-group">
+                            <button class="btn btn-outline-primary btn-sm" onclick="zoomIn()">
+                                <i class="fas fa-search-plus"></i>
+                            </button>
+                            <button class="btn btn-outline-primary btn-sm" onclick="zoomOut()">
+                                <i class="fas fa-search-minus"></i>
+                            </button>
+                            <button class="btn btn-outline-primary btn-sm" onclick="resetView()">
+                                <i class="fas fa-expand"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="chart-container" id="hierarchyChart">
+                        <!-- Plotly chart will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tree View -->
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="visualization-card">
+                    <h5 class="fw-bold mb-3"><i class="fas fa-project-diagram me-2"></i>Tree View</h5>
+                    <div id="treeView" style="max-height: 500px; overflow-y: auto;">
+                        <!-- Tree will be loaded here -->
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="visualization-card">
+                    <h5 class="fw-bold mb-3"><i class="fas fa-info-circle me-2"></i>Selected Manager</h5>
+                    <div id="managerDetails">
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-mouse-pointer fa-2x mb-3"></i>
+                            <p>Click on any manager in the chart to view details</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let hierarchyData = null;
+        let plotlyChart = null;
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadHierarchy();
+        });
+
+        // Load hierarchy data
+        async function loadHierarchy() {
+            try {
+                showLoading(true);
+                
+                const response = await fetch('/api/hierarchy');
+                const data = await response.json();
+                
+                if (data.success) {
+                    hierarchyData = data;
+                    renderStats(data.statistics);
+                    renderHierarchyChart(data);
+                    renderTreeView(data.hierarchy);
+                    showLoading(false);
+                }
+            } catch (error) {
+                console.error('Error loading hierarchy:', error);
+                showLoading(false);
+                alert('Error loading hierarchy data. Please try again.');
+            }
+        }
+
+        // Render statistics
+        function renderStats(stats) {
+            const statsContainer = document.getElementById('statsContainer');
+            statsContainer.innerHTML = `
+                <div class="col-md-4">
+                    <div class="stats-card trusting">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="fw-bold mb-1">Average Trusting</h6>
+                                <div class="h3 fw-bold">${stats.trusting_avg?.toFixed(1) || '0.0'}/10</div>
+                            </div>
+                            <i class="fas fa-handshake fa-2x text-success"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stats-card tasking">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="fw-bold mb-1">Average Tasking</h6>
+                                <div class="h3 fw-bold">${stats.tasking_avg?.toFixed(1) || '0.0'}/10</div>
+                            </div>
+                            <i class="fas fa-tasks fa-2x text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stats-card tending">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="fw-bold mb-1">Average Tending</h6>
+                                <div class="h3 fw-bold">${stats.tending_avg?.toFixed(1) || '0.0'}/10</div>
+                            </div>
+                            <i class="fas fa-users-cog fa-2x text-warning"></i>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render hierarchy chart
+        function renderHierarchyChart(data) {
+            // Prepare data for Plotly
+            const nodes = [];
+            const edges = [];
+            const nodeColors = [];
+            const nodeSizes = [];
+            const hoverTexts = [];
+            
+            // Process hierarchy data
+            function processTree(tree, parentId = null) {
+                if (!tree || !tree.manager) return;
+                
+                const manager = tree.manager;
+                const nodeId = manager.manager_name;
+                
+                // Calculate average score for coloring
+                const avgScore = (
+                    (manager.category_averages?.trusting || 0) +
+                    (manager.category_averages?.tasking || 0) +
+                    (manager.category_averages?.tending || 0)
+                ) / 3;
+                
+                // Determine color based on score
+                let color;
+                if (avgScore >= 7) color = '#10b981';      // Green
+                else if (avgScore >= 5) color = '#f59e0b'; // Orange
+                else color = '#ef4444';                    // Red
+                
+                // Node size based on direct reports
+                const size = 20 + (manager.direct_reports_count || 0) * 5;
+                
+                // Hover text
+                const hoverText = `
+                    <b>${manager.manager_name}</b><br>
+                    Reports to: ${manager.reporting_to || 'Top Level'}<br>
+                    Trusting: ${manager.category_averages?.trusting?.toFixed(1) || '0.0'}/10<br>
+                    Tasking: ${manager.category_averages?.tasking?.toFixed(1) || '0.0'}/10<br>
+                    Tending: ${manager.category_averages?.tending?.toFixed(1) || '0.0'}/10<br>
+                    Direct Reports: ${manager.direct_reports_count || 0}
+                `;
+                
+                nodes.push(nodeId);
+                nodeColors.push(color);
+                nodeSizes.push(size);
+                hoverTexts.push(hoverText);
+                
+                // Add edge if there's a parent
+                if (parentId) {
+                    edges.push({
+                        from: parentId,
+                        to: nodeId
+                    });
+                }
+                
+                // Process children
+                tree.direct_reports?.forEach(child => {
+                    processTree(child, nodeId);
+                });
+            }
+            
+            // Process all trees
+            data.hierarchy?.forEach(tree => {
+                processTree(tree);
+            });
+            
+            // Create Plotly chart
+            const edgeX = [];
+            const edgeY = [];
+            
+            // For simplicity, we'll create a simple hierarchy visualization
+            // In a real app, you would use a proper layout algorithm
+            const traceNodes = {
+                x: Array(nodes.length).fill(0).map((_, i) => i % 10 * 100),
+                y: Array(nodes.length).fill(0).map((_, i) => Math.floor(i / 10) * -100),
+                mode: 'markers+text',
+                text: nodes,
+                textposition: 'top center',
+                hovertext: hoverTexts,
+                hoverinfo: 'text',
+                marker: {
+                    size: nodeSizes,
+                    color: nodeColors,
+                    line: {
+                        width: 2,
+                        color: 'darkblue'
+                    }
+                },
+                type: 'scatter',
+                name: 'Managers'
+            };
+            
+            const layout = {
+                title: 'Organizational Hierarchy',
+                showlegend: false,
+                hovermode: 'closest',
+                xaxis: {
+                    showgrid: false,
+                    zeroline: false,
+                    showticklabels: false
+                },
+                yaxis: {
+                    showgrid: false,
+                    zeroline: false,
+                    showticklabels: false,
+                    scaleanchor: 'x'
+                },
+                height: 600,
+                plot_bgcolor: 'white'
+            };
+            
+            plotlyChart = Plotly.newPlot('hierarchyChart', [traceNodes], layout);
+            
+            // Add click event
+            document.getElementById('hierarchyChart').on('plotly_click', function(data) {
+                if (data.points[0]) {
+                    const pointIndex = data.points[0].pointIndex;
+                    const managerName = nodes[pointIndex];
+                    showManagerDetails(managerName);
+                }
+            });
+        }
+
+        // Render tree view
+        function renderTreeView(hierarchy) {
+            const treeView = document.getElementById('treeView');
+            
+            function createTreeNode(tree, level = 0) {
+                if (!tree || !tree.manager) return '';
+                
+                const manager = tree.manager;
+                const avgScore = (
+                    (manager.category_averages?.trusting || 0) +
+                    (manager.category_averages?.tasking || 0) +
+                    (manager.category_averages?.tending || 0)
+                ) / 3;
+                
+                let scoreClass = '';
+                if (avgScore >= 7) scoreClass = 'border-success';
+                else if (avgScore >= 5) scoreClass = 'border-warning';
+                else scoreClass = 'border-danger';
+                
+                let html = `
+                    <div class="manager-node ${scoreClass}" style="margin-left: ${level * 30}px;" 
+                         onclick="showManagerDetails('${manager.manager_name}')">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${manager.manager_name}</strong>
+                                <div class="text-muted small">
+                                    ${manager.reporting_to ? `Reports to: ${manager.reporting_to}` : 'Top Level'} |
+                                    Reports: ${manager.direct_reports_count || 0}
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <div class="badge bg-light text-dark">
+                                    T: ${manager.category_averages?.trusting?.toFixed(1) || '0.0'}
+                                </div>
+                                <div class="badge bg-light text-dark">
+                                    K: ${manager.category_averages?.tasking?.toFixed(1) || '0.0'}
+                                </div>
+                                <div class="badge bg-light text-dark">
+                                    D: ${manager.category_averages?.tending?.toFixed(1) || '0.0'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Add children
+                tree.direct_reports?.forEach(child => {
+                    html += createTreeNode(child, level + 1);
+                });
+                
+                return html;
+            }
+            
+            let treeHtml = '';
+            hierarchy?.forEach(tree => {
+                treeHtml += createTreeNode(tree);
+            });
+            
+            treeView.innerHTML = treeHtml || '<p class="text-muted text-center py-4">No hierarchy data available</p>';
+        }
+
+        // Show manager details
+        async function showManagerDetails(managerName) {
+            try {
+                const response = await fetch(`/api/manager/${encodeURIComponent(managerName)}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const manager = data.manager;
+                    const detailsDiv = document.getElementById('managerDetails');
+                    
+                    const trustingScore = manager.category_averages?.trusting || 0;
+                    const taskingScore = manager.category_averages?.tasking || 0;
+                    const tendingScore = manager.category_averages?.tending || 0;
+                    const avgScore = (trustingScore + taskingScore + tendingScore) / 3;
+                    
+                    let scoreStatus = '';
+                    if (avgScore >= 7) scoreStatus = '<span class="badge bg-success">High Performer</span>';
+                    else if (avgScore >= 5) scoreStatus = '<span class="badge bg-warning">Average</span>';
+                    else scoreStatus = '<span class="badge bg-danger">Needs Improvement</span>';
+                    
+                    detailsDiv.innerHTML = `
+                        <div class="text-center mb-3">
+                            <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center" 
+                                 style="width: 80px; height: 80px;">
+                                <i class="fas fa-user-tie fa-2x"></i>
+                            </div>
+                            <h4 class="mt-3 mb-1">${manager.manager_name}</h4>
+                            <div class="text-muted mb-3">${manager.reporting_to ? `Reports to: ${manager.reporting_to}` : 'Top Level Manager'}</div>
+                            ${scoreStatus}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <h6 class="fw-bold">Performance Scores</h6>
+                            <div class="row">
+                                <div class="col-4 text-center">
+                                    <div class="h4 fw-bold text-success">${trustingScore.toFixed(1)}</div>
+                                    <small class="text-muted">Trusting</small>
+                                </div>
+                                <div class="col-4 text-center">
+                                    <div class="h4 fw-bold text-primary">${taskingScore.toFixed(1)}</div>
+                                    <small class="text-muted">Tasking</small>
+                                </div>
+                                <div class="col-4 text-center">
+                                    <div class="h4 fw-bold text-warning">${tendingScore.toFixed(1)}</div>
+                                    <small class="text-muted">Tending</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <h6 class="fw-bold">Details</h6>
+                            <div class="small">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>Total Assessments:</span>
+                                    <span class="fw-bold">${manager.total_assessments || 0}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>First Assessment:</span>
+                                    <span>${manager.first_assessment ? new Date(manager.first_assessment).toLocaleDateString() : 'N/A'}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>Last Assessment:</span>
+                                    <span>${manager.last_assessment ? new Date(manager.last_assessment).toLocaleDateString() : 'N/A'}</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span>Confidence Score:</span>
+                                    <span class="fw-bold">${manager.confidence_score || 0}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-primary" onclick="window.open('/api/report/pdf/${encodeURIComponent(managerName)}', '_blank')">
+                                <i class="fas fa-file-pdf me-2"></i>Download Report
+                            </button>
+                            <button class="btn btn-outline-success" onclick="window.open('/api/visualization/radar/${encodeURIComponent(managerName)}', '_blank')">
+                                <i class="fas fa-chart-radar me-2"></i>View Radar Chart
+                            </button>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading manager details:', error);
+            }
+        }
+
+        // Chart controls
+        function zoomIn() {
+            if (plotlyChart) {
+                Plotly.relayout('hierarchyChart', {
+                    'xaxis.range': [null, null],
+                    'yaxis.range': [null, null]
+                });
+            }
+        }
+
+        function zoomOut() {
+            if (plotlyChart) {
+                Plotly.relayout('hierarchyChart', {
+                    'xaxis.range': [-500, 500],
+                    'yaxis.range': [-500, 500]
+                });
+            }
+        }
+
+        function resetView() {
+            if (plotlyChart) {
+                Plotly.relayout('hierarchyChart', {
+                    'xaxis.range': [-1000, 1000],
+                    'yaxis.range': [-1000, 1000]
+                });
+            }
+        }
+
+        function showLoading(show) {
+            // Simple loading indicator
+            if (show) {
+                document.getElementById('hierarchyChart').innerHTML = `
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-3 text-muted">Loading hierarchy data...</p>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

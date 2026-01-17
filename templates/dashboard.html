@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAM Company Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+        :root {
+            --ink: #0a1b44;
+            --muted: #24355f;
+            --accent: #3b2bff;
+            --accent-soft: #b3abff;
+            --surface: #ffffff;
+            --bg: #ebe6ff;
+            --success: #14b8a6;
+            --warning: #f59e0b;
+            --info: #2563eb;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: var(--ink);
+            background: radial-gradient(circle at 15% 20%, rgba(91, 78, 255, 0.25), transparent 45%),
+                        radial-gradient(circle at 85% 0%, rgba(172, 112, 255, 0.25), transparent 40%),
+                        linear-gradient(135deg, #f5f0ff 0%, #e3ddff 100%);
+            min-height: 100vh;
+        }
+
+        .page-shell {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 32px 60px 80px;
+        }
+
+        .nav-brand {
+            font-family: 'Spectral', serif;
+            font-size: 30px;
+            letter-spacing: 0.4px;
+        }
+
+        .hero-card {
+            background: var(--surface);
+            border-radius: 20px;
+            padding: 36px 40px;
+            box-shadow: 0 24px 60px rgba(11, 21, 56, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-card::after {
+            content: "";
+            position: absolute;
+            right: -80px;
+            top: -80px;
+            width: 220px;
+            height: 220px;
+            background: radial-gradient(circle, rgba(91, 78, 255, 0.3) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+        .hero-title {
+            font-size: 44px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .hero-subtitle {
+            color: var(--muted);
+            font-size: 20px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border-radius: 18px;
+            padding: 26px;
+            box-shadow: 0 18px 40px rgba(11, 21, 56, 0.12);
+            border: 1px solid #e2e8f0;
+        }
+
+        .stat-label {
+            color: var(--muted);
+            font-size: 17px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            font-size: 40px;
+            font-weight: 700;
+            margin-top: 6px;
+        }
+
+        .search-card {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 16px 18px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 12px 30px rgba(11, 21, 56, 0.12);
+        }
+
+        .search-input {
+            border: none;
+            font-size: 20px;
+            width: 100%;
+            outline: none;
+            color: var(--ink);
+        }
+
+        .company-table {
+            background: var(--surface);
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 22px 55px rgba(11, 21, 56, 0.15);
+        }
+
+        .company-table thead {
+            background: #141b3c;
+            color: #fff;
+        }
+
+        .company-table th {
+            font-weight: 600;
+            font-size: 16px;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+            padding: 16px;
+        }
+
+        .company-table td {
+            padding: 16px;
+            font-size: 18px;
+            vertical-align: middle;
+        }
+
+        .score-bar {
+            height: 8px;
+            border-radius: 5px;
+            background: #e2e8f0;
+            overflow: hidden;
+        }
+
+        .score-fill { height: 100%; }
+        .score-trusting { background: var(--success); }
+        .score-tasking { background: var(--info); }
+        .score-tending { background: var(--warning); }
+
+        .btn-primary {
+            background: var(--accent);
+            border: none;
+            font-size: 18px;
+        }
+
+        .btn-primary:hover {
+            background: #1e40af;
+        }
+
+        .vector-grid {
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(rgba(59, 43, 255, 0.3) 1px, transparent 1px);
+            background-size: 28px 28px;
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        @media (max-width: 992px) {
+            .page-shell { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand nav-brand" href="/dashboard">PAM Dashboard</a>
+            <div class="ms-auto">
+                <span class="text-white me-3">{{ user.email }}</span>
+                <a class="btn btn-outline-light btn-sm" href="/logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="page-shell">
+        <div class="hero-card mb-4 position-relative">
+            <div class="vector-grid"></div>
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div>
+                    <div class="hero-title">Companies Overview</div>
+                    <div class="hero-subtitle">Unified view of assessment activity across all organizations.</div>
+                </div>
+                <a class="btn btn-primary btn-lg" href="/company/new">Add Company</a>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-label">Total Companies</div>
+                    <div class="stat-value" id="totalCompanies">0</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-label">Total Managers</div>
+                    <div class="stat-value" id="totalManagers">0</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-label">Total Assessments</div>
+                    <div class="stat-value" id="totalAssessments">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3">
+            <div class="search-card flex-grow-1">
+                <input class="search-input" type="text" id="companySearchInput" placeholder="Search company by name (typos allowed)...">
+            </div>
+        </div>
+
+        <div class="company-table">
+            <div class="table-responsive">
+                <table class="table table-borderless align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Company</th>
+                            <th>Managers</th>
+                            <th>Assessments</th>
+                            <th>Average Scores</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="companyTableBody">
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Company Modal -->
+    <div class="modal fade" id="editCompanyModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Company</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="editCompanyId">
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" class="form-control" id="editCompanyName">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Industry</label>
+                        <input type="text" class="form-control" id="editCompanyIndustry">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Employees</label>
+                        <input type="number" class="form-control" id="editCompanyEmployees">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Owner</label>
+                        <input type="text" class="form-control" id="editCompanyOwner">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" id="editCompanyDescription" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveCompanyEdit()">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let companiesCache = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDashboard();
+            document.getElementById('companySearchInput').addEventListener('input', onSearch);
+        });
+
+        async function loadDashboard() {
+            const response = await fetch('/api/dashboard/stats');
+            const data = await response.json();
+            if (!data.success) {
+                return;
+            }
+            const stats = data.stats;
+            companiesCache = stats.companies || [];
+            document.getElementById('totalCompanies').textContent = stats.total_companies;
+            document.getElementById('totalManagers').textContent = stats.total_managers;
+            document.getElementById('totalAssessments').textContent = stats.total_assessments;
+            renderCompanies(companiesCache);
+        }
+
+        function renderCompanies(companies) {
+            const body = document.getElementById('companyTableBody');
+            if (!companies.length) {
+                body.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No companies found.</td></tr>';
+                return;
+            }
+            body.innerHTML = companies.map(company => {
+                const scores = company.avg_scores || {trusting: 0, tasking: 0, tending: 0};
+                return `
+                    <tr>
+                        <td>
+                            <div class="fw-bold">${company.name}</div>
+                            <div class="text-muted small">${company.slug}</div>
+                        </td>
+                        <td>${company.manager_count}</td>
+                        <td>${company.assessment_count}</td>
+                        <td>
+                            <div class="small text-muted">Trusting ${scores.trusting}</div>
+                            <div class="score-bar mb-1"><div class="score-fill score-trusting" style="width:${scores.trusting * 10}%"></div></div>
+                            <div class="small text-muted">Tasking ${scores.tasking}</div>
+                            <div class="score-bar mb-1"><div class="score-fill score-tasking" style="width:${scores.tasking * 10}%"></div></div>
+                            <div class="small text-muted">Tending ${scores.tending}</div>
+                            <div class="score-bar"><div class="score-fill score-tending" style="width:${scores.tending * 10}%"></div></div>
+                        </td>
+                        <td>
+                            <a class="btn btn-sm btn-outline-primary me-1" href="/company/${company.id}">View</a>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="openEdit('${company.id}')">Edit</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function onSearch(e) {
+            const query = e.target.value.trim().toLowerCase();
+            if (!query) {
+                renderCompanies(companiesCache);
+                return;
+            }
+            const filtered = companiesCache.filter(company => {
+                const name = (company.name || '').toLowerCase();
+                if (name.includes(query)) {
+                    return true;
+                }
+                return similarityScore(name, query) >= 0.7;
+            });
+            renderCompanies(filtered);
+        }
+
+        function similarityScore(a, b) {
+            const distance = levenshtein(a, b);
+            const maxLen = Math.max(a.length, b.length) || 1;
+            return 1 - distance / maxLen;
+        }
+
+        function levenshtein(a, b) {
+            const matrix = Array.from({ length: b.length + 1 }, () => []);
+            for (let i = 0; i <= b.length; i++) {
+                matrix[i][0] = i;
+            }
+            for (let j = 0; j <= a.length; j++) {
+                matrix[0][j] = j;
+            }
+            for (let i = 1; i <= b.length; i++) {
+                for (let j = 1; j <= a.length; j++) {
+                    if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                        matrix[i][j] = matrix[i - 1][j - 1];
+                    } else {
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j - 1] + 1,
+                            matrix[i][j - 1] + 1,
+                            matrix[i - 1][j] + 1
+                        );
+                    }
+                }
+            }
+            return matrix[b.length][a.length];
+        }
+
+        function openEdit(companyId) {
+            const company = companiesCache.find(item => item.id === companyId);
+            if (!company) return;
+            document.getElementById('editCompanyId').value = company.id;
+            document.getElementById('editCompanyName').value = company.name || '';
+            document.getElementById('editCompanyIndustry').value = company.industry || '';
+            document.getElementById('editCompanyEmployees').value = company.employee_count || 0;
+            document.getElementById('editCompanyOwner').value = company.owner || '';
+            document.getElementById('editCompanyDescription').value = company.description || '';
+            const modal = new bootstrap.Modal(document.getElementById('editCompanyModal'));
+            modal.show();
+        }
+
+        async function saveCompanyEdit() {
+            const companyId = document.getElementById('editCompanyId').value;
+            const payload = {
+                name: document.getElementById('editCompanyName').value,
+                industry: document.getElementById('editCompanyIndustry').value,
+                employee_count: document.getElementById('editCompanyEmployees').value,
+                owner: document.getElementById('editCompanyOwner').value,
+                description: document.getElementById('editCompanyDescription').value
+            };
+            await fetch(`/api/companies/${companyId}/update`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            await loadDashboard();
+            const modalEl = document.getElementById('editCompanyModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            modal.hide();
+        }
+    </script>
+</body>
+</html>

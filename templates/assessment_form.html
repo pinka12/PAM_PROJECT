@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manager Assessment - {{ company.name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #667eea;
+            --secondary: #764ba2;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .form-container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            margin: 30px auto;
+            width: 80%;
+            max-width: 1200px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+        }
+        
+        .company-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid var(--primary);
+        }
+        
+        .company-logo {
+            font-size: 3rem;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+        
+        .question-card {
+            background: #f8fafc;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-left: 5px solid var(--primary);
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .question-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .question-number {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 35px;
+            margin-right: 15px;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .option-btn {
+            padding: 12px 25px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            flex: 1;
+            margin: 5px;
+            font-size: 15px;
+            font-weight: 500;
+        }
+        
+        .option-btn:hover {
+            border-color: var(--primary);
+            background: rgba(102, 126, 234, 0.05);
+        }
+        
+        .option-btn.selected {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+        
+        .btn-submit {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 18px;
+            transition: all 0.3s;
+            width: 100%;
+            margin-top: 30px;
+        }
+        
+        .btn-submit:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .progress-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 20px;
+            z-index: 100;
+        }
+        
+        .progress-bar {
+            height: 10px;
+            border-radius: 5px;
+            background: #e5e7eb;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+            transition: width 0.5s ease;
+        }
+        
+        .manager-select {
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 15px;
+            width: 100%;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        .manager-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .form-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
+        
+        .section-title {
+            color: var(--primary);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f1f5f9;
+        }
+        
+        .alert-info {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border: 2px solid var(--primary);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        
+        .floating-counter {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: white;
+            padding: 15px 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            font-weight: bold;
+            color: var(--primary);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+        }
+        
+        .save-indicator {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            background: #10b981;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: 500;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+        }
+        
+        .save-indicator.show {
+            opacity: 1;
+        }
+        
+        .question-text {
+            font-size: 18px;
+            line-height: 1.7;
+            color: #374151;
+        }
+        
+        .options-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .form-container {
+                padding: 20px;
+                margin: 10px;
+                border-radius: 15px;
+                width: auto;
+            }
+            
+            .question-card {
+                padding: 20px;
+            }
+            
+            .options-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .option-btn {
+                padding: 12px;
+                margin: 3px 0;
+            }
+            
+            .floating-counter {
+                bottom: 15px;
+                right: 15px;
+                padding: 10px 15px;
+                font-size: 14px;
+            }
+            
+            .save-indicator {
+                bottom: 15px;
+                left: 15px;
+                padding: 8px 15px;
+                font-size: 14px;
+            }
+        }
+        
+        .instruction-box {
+            background: #f0f9ff;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-4">
+        <div class="form-container">
+            <!-- Company Header -->
+            <div class="company-header">
+                <div class="company-logo">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <h1 class="h2 fw-bold">{{ company.name }}</h1>
+                <p class="text-muted">Manager Feedback Form</p>
+                <div class="instruction-box">
+                    <p class="mb-0"><i class="fas fa-info-circle me-2"></i>
+                        Please provide honest feedback about your manager based on your experience. 
+                        All responses are anonymous and confidential.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Progress Bar -->
+            <div class="progress-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="fw-bold mb-1">Your Progress</h6>
+                        <div class="text-muted small">Questions completed: <span id="answeredCount">0</span>/{{ total_questions }}</div>
+                    </div>
+                    <div class="text-end">
+                        <div id="progressPercent" class="fw-bold">0%</div>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <!-- Manager Selection -->
+            <div class="form-section">
+                <h4 class="section-title"><i class="fas fa-user-tie me-2"></i>About the Manager</h4>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Manager Name *</label>
+                        <input type="text" class="manager-select" id="managerName" placeholder="Enter manager full name" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Manager Reports To *</label>
+                        <input type="text" class="manager-select" id="reportingTo" placeholder="Enter reporting manager name" required>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Respondent Information (Optional) -->
+            <div class="form-section">
+                <h4 class="section-title"><i class="fas fa-user me-2"></i>About You (Optional)</h4>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Your Email Address</label>
+                        <input type="email" class="form-control" id="respondentEmail" placeholder="name@company.com">
+                        <div class="form-text">Only for confirmation, not shared with manager</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Your Role</label>
+                        <select class="form-control" id="respondentRole">
+                            <option value="">Select your role...</option>
+                            <option value="direct_report">Direct Report</option>
+                            <option value="team_member">Team Member</option>
+                            <option value="peer">Peer/Colleague</option>
+                            <option value="supervisor">Supervisor</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Questions Section -->
+            <div class="form-section">
+                <h4 class="section-title"><i class="fas fa-edit me-2"></i>Assessment Questions</h4>
+                <p class="text-muted mb-4">Please rate each statement based on your experience working with this manager.</p>
+                
+                <!-- All Questions in Random Order -->
+                {% set all_questions = [] %}
+                {% for category in ['trusting', 'tasking', 'tending'] %}
+                    {% for question in questions[category] %}
+                        {% set _ = all_questions.append(question) %}
+                    {% endfor %}
+                {% endfor %}
+                
+                <!-- Shuffle questions on server side (already randomized in main.py) -->
+                {% for question in all_questions %}
+                <div class="question-card" data-question-id="{{ question.id }}">
+                    <div class="d-flex align-items-start mb-3">
+                        <span class="question-number">{{ loop.index }}</span>
+                        <div class="flex-grow-1">
+                            <div class="question-text fw-bold">{{ question.text }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="options-container">
+                        {% for option in question.options %}
+                        <div class="option-btn" data-value="{{ option }}" data-question-id="{{ question.id }}">
+                            {{ option }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Submission Button -->
+            <div class="text-center">
+                <button class="btn btn-submit" id="submitBtn" disabled>
+                    <i class="fas fa-paper-plane me-2"></i>
+                    <span id="submitText">Submit Feedback</span>
+                    <span id="loadingSpinner" style="display: none;">
+                        <i class="fas fa-spinner fa-spin me-2"></i>Processing...
+                    </span>
+                </button>
+                <p class="text-muted mt-3 small">
+                    <i class="fas fa-lock me-1"></i>
+                    Your responses are anonymous and will be aggregated with others
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Elements -->
+    <div class="floating-counter">
+        <i class="fas fa-clipboard-check me-2"></i>
+        <span id="floatingCounter">0/{{ total_questions }}</span>
+    </div>
+    
+    <div class="save-indicator" id="saveIndicator">
+        <i class="fas fa-save me-2"></i>
+        <span>Progress saved</span>
+    </div>
+
+    <!-- Success Modal -->
+    <div class="modal fade" id="successModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center py-5">
+                    <div class="display-1 text-success mb-4">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h3 class="fw-bold mb-3">Thank You for Your Feedback!</h3>
+                    <p class="text-muted mb-4">
+                        Your responses have been recorded anonymously and will contribute to 
+                        meaningful leadership development.
+                    </p>
+                    <div class="alert alert-success mb-4">
+                        <i class="fas fa-shield-alt me-2"></i>
+                        Your identity is protected and responses are confidential
+                    </div>
+                    <button class="btn btn-primary btn-lg" onclick="window.location.href='/'">
+                        <i class="fas fa-home me-2"></i>Done
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Configuration
+        const sessionId = "{{ session_id }}";
+        const companySlug = "{{ company.slug }}";
+        const totalQuestions = {{ total_questions }};
+        const formToken = "{{ form_token }}";
+        
+        // State management
+        let answers = {};
+        let selectedManager = "";
+        let selectedReportingTo = "";
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            loadSavedProgress();
+            updateProgress();
+            updateFloatingCounter();
+        });
+        
+        // Setup event listeners
+        function setupEventListeners() {
+            // Manager inputs
+            document.getElementById('managerName').addEventListener('input', function() {
+                selectedManager = this.value.trim();
+                validateForm();
+                saveProgress();
+            });
+            
+            document.getElementById('reportingTo').addEventListener('input', function() {
+                selectedReportingTo = this.value.trim();
+                validateForm();
+                saveProgress();
+            });
+            
+            // Optional fields
+            document.getElementById('respondentEmail').addEventListener('input', saveProgress);
+            document.getElementById('respondentRole').addEventListener('change', saveProgress);
+            
+            // Question option clicks
+            document.querySelectorAll('.option-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const questionId = this.dataset.questionId;
+                    const value = this.dataset.value;
+                    
+                    // Find all options for this question
+                    const questionCard = this.closest('.question-card');
+                    const allOptions = questionCard.querySelectorAll('.option-btn');
+                    
+                    // Remove selected class from all options
+                    allOptions.forEach(option => {
+                        option.classList.remove('selected');
+                    });
+                    
+                    // Add selected class to clicked option
+                    this.classList.add('selected');
+                    
+                    // Store answer
+                    answers[questionId] = value;
+                    
+                    // Update UI
+                    updateProgress();
+                    validateForm();
+                    saveProgress();
+                    updateFloatingCounter();
+                });
+            });
+            
+            // Form submission
+            document.getElementById('submitBtn').addEventListener('click', submitForm);
+            
+            // Auto-save every 30 seconds
+            setInterval(saveProgress, 30000);
+        }
+        
+        // Update progress bar
+        function updateProgress() {
+            const answeredCount = Object.keys(answers).length;
+            const percentage = Math.round((answeredCount / totalQuestions) * 100);
+            
+            // Update counters
+            document.getElementById('answeredCount').textContent = answeredCount;
+            document.getElementById('progressPercent').textContent = `${percentage}%`;
+            document.getElementById('progressFill').style.width = `${percentage}%`;
+            
+            // Update progress bar color
+            const progressFill = document.getElementById('progressFill');
+            if (percentage < 30) {
+                progressFill.style.background = 'linear-gradient(90deg, #ef4444 0%, #f59e0b 50%)';
+            } else if (percentage < 70) {
+                progressFill.style.background = 'linear-gradient(90deg, #f59e0b 0%, #3b82f6 50%)';
+            } else {
+                progressFill.style.background = 'linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%)';
+            }
+        }
+        
+        // Update floating counter
+        function updateFloatingCounter() {
+            const answeredCount = Object.keys(answers).length;
+            document.getElementById('floatingCounter').textContent = `${answeredCount}/${totalQuestions}`;
+        }
+        
+        // Validate form
+        function validateForm() {
+            const answeredCount = Object.keys(answers).length;
+            
+            // Get manager values
+            let managerValue = document.getElementById('managerName').value.trim();
+            let reportingValue = document.getElementById('reportingTo').value.trim();
+            
+            const isManagerValid = managerValue && managerValue.length > 0;
+            const isReportingValid = reportingValue && reportingValue.length > 0;
+            
+            const isValid = answeredCount === totalQuestions && isManagerValid && isReportingValid;
+            
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = !isValid;
+            
+            return isValid;
+        }
+        
+        // Save progress to localStorage
+        function saveProgress() {
+            const answeredCount = Object.keys(answers).length;
+            if (answeredCount > 0 || selectedManager || selectedReportingTo) {
+                const saveData = {
+                    answers: answers,
+                    manager: selectedManager,
+                    reporting_to: selectedReportingTo,
+                    respondent_email: document.getElementById('respondentEmail').value,
+                    respondent_role: document.getElementById('respondentRole').value,
+                    timestamp: new Date().toISOString()
+                };
+                
+                localStorage.setItem(`assessment_${companySlug}_${sessionId}`, JSON.stringify(saveData));
+                
+                // Show save indicator
+                const indicator = document.getElementById('saveIndicator');
+                indicator.classList.add('show');
+                setTimeout(() => indicator.classList.remove('show'), 2000);
+            }
+        }
+        
+        // Load saved progress
+        function loadSavedProgress() {
+            const savedData = localStorage.getItem(`assessment_${companySlug}_${sessionId}`);
+            if (savedData) {
+                try {
+                    const data = JSON.parse(savedData);
+                    
+                    // Load answers
+                    if (data.answers) {
+                        answers = data.answers;
+                        
+                        // Restore selected options
+                        Object.keys(answers).forEach(questionId => {
+                            const questionCard = document.querySelector(`[data-question-id="${questionId}"]`);
+                            if (questionCard) {
+                                const optionBtn = questionCard.querySelector(`[data-value="${answers[questionId]}"]`);
+                                if (optionBtn) {
+                                    optionBtn.classList.add('selected');
+                                }
+                            }
+                        });
+                    }
+                    
+                    // Load manager selections
+                    if (data.manager) {
+                        selectedManager = data.manager;
+                        document.getElementById('managerName').value = data.manager;
+                    }
+                    
+                    if (data.reporting_to) {
+                        selectedReportingTo = data.reporting_to;
+                        document.getElementById('reportingTo').value = data.reporting_to;
+                    }
+                    
+                    // Load optional fields
+                    if (data.respondent_email) {
+                        document.getElementById('respondentEmail').value = data.respondent_email;
+                    }
+                    if (data.respondent_role) {
+                        document.getElementById('respondentRole').value = data.respondent_role;
+                    }
+                    
+                    console.log('Loaded saved progress:', Object.keys(answers).length, 'answers');
+                    
+                } catch (error) {
+                    console.error('Error loading saved progress:', error);
+                }
+            }
+        }
+        
+        // Submit form
+        async function submitForm() {
+            if (!validateForm()) {
+                alert('Please complete all questions and select a manager before submitting.');
+                return;
+            }
+            
+            // Show loading state
+            const submitBtn = document.getElementById('submitBtn');
+            const submitText = document.getElementById('submitText');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            
+            submitText.style.display = 'none';
+            loadingSpinner.style.display = 'inline';
+            submitBtn.disabled = true;
+            
+            try {
+                // Get final manager values
+                let finalManager = document.getElementById('managerName').value.trim();
+                let finalReportingTo = document.getElementById('reportingTo').value.trim();
+                
+                // Prepare submission data
+                const submissionData = {
+                    company_slug: companySlug,
+                    manager_name: finalManager,
+                    reporting_to: finalReportingTo,
+                    respondent_email: document.getElementById('respondentEmail').value || '',
+                    respondent_role: document.getElementById('respondentRole').value || 'anonymous',
+                    answers: answers,
+                    session_id: sessionId,
+                    form_token: formToken
+                };
+                
+                // Submit to API
+                const response = await fetch('/api/submit-assessment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(submissionData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Clear saved data
+                    localStorage.removeItem(`assessment_${companySlug}_${sessionId}`);
+                    
+                    // Show success modal
+                    const modal = new bootstrap.Modal(document.getElementById('successModal'));
+                    modal.show();
+                    
+                    // Auto-close after 8 seconds
+                    setTimeout(() => {
+                        if (modal._isShown) {
+                            modal.hide();
+                            window.location.href = '/';
+                        }
+                    }, 8000);
+                    
+                } else {
+                    alert(`Submission failed: ${result.detail || 'Please try again.'}`);
+                    
+                    // Reset button state
+                    submitText.style.display = 'inline';
+                    loadingSpinner.style.display = 'none';
+                    submitBtn.disabled = false;
+                }
+                
+            } catch (error) {
+                console.error('Submission error:', error);
+                alert('An error occurred while submitting. Please check your connection and try again.');
+                
+                // Reset button state
+                submitText.style.display = 'inline';
+                loadingSpinner.style.display = 'none';
+                submitBtn.disabled = false;
+            }
+        }
+        
+        // Prevent accidental navigation
+        window.addEventListener('beforeunload', function (e) {
+            const answeredCount = Object.keys(answers).length;
+            if (answeredCount > 0 && answeredCount < totalQuestions) {
+                e.preventDefault();
+                e.returnValue = 'You have unsaved answers. Are you sure you want to leave?';
+                return e.returnValue;
+            }
+        });
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ctrl/Cmd + S to save
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                saveProgress();
+            }
+            
+            // Number keys 1-3 for quick answers (for testing)
+            if (e.key >= '1' && e.key <= '3') {
+                const activeElement = document.activeElement;
+                if (!activeElement || !['INPUT', 'TEXTAREA', 'SELECT'].includes(activeElement.tagName)) {
+                    const options = ['Never', 'Sometimes', 'Always'];
+                    const selectedOption = options[parseInt(e.key) - 1];
+                    
+                    // Find first unanswered question
+                    const unansweredQuestion = document.querySelector('.question-card:not(:has(.option-btn.selected))');
+                    if (unansweredQuestion) {
+                        const optionBtn = unansweredQuestion.querySelector(`[data-value="${selectedOption}"]`);
+                        if (optionBtn) {
+                            optionBtn.click();
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Scroll to first unanswered question
+        function scrollToFirstUnanswered() {
+            const firstUnanswered = document.querySelector('.question-card:not(:has(.option-btn.selected))');
+            if (firstUnanswered) {
+                firstUnanswered.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstUnanswered.style.animation = 'pulse 0.5s';
+                setTimeout(() => firstUnanswered.style.animation = '', 500);
+            }
+        }
+        
+        // Add CSS for pulse animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes pulse {
+                0% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7); }
+                70% { box-shadow: 0 0 0 10px rgba(102, 126, 234, 0); }
+                100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0); }
+            }
+            .question-card {
+                animation: none;
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

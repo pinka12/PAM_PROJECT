@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thank You - {{ company.name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .thank-you-card {
+            background: white;
+            border-radius: 25px;
+            padding: 50px;
+            max-width: 600px;
+            text-align: center;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.3);
+        }
+        
+        .success-icon {
+            font-size: 5rem;
+            color: #10b981;
+            margin-bottom: 20px;
+        }
+        
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #ff6b6b;
+            border-radius: 50%;
+            animation: confetti-fall 5s linear infinite;
+        }
+        
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(-100px) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        
+        .btn-back {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 10px;
+            font-weight: bold;
+            margin-top: 20px;
+            transition: all 0.3s;
+        }
+        
+        .btn-back:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <!-- Confetti Animation -->
+    <div id="confettiContainer"></div>
+    
+    <div class="thank-you-card">
+        <div class="success-icon">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        
+        <h1 class="display-4 fw-bold mb-3">Thank You!</h1>
+        
+        <div class="mb-4">
+            <h4 class="text-primary">{{ company.name }}</h4>
+            <p class="text-muted">360° Assessment Form</p>
+        </div>
+        
+        <div class="alert alert-success mb-4">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-shield-alt fa-2x me-3"></i>
+                <div class="text-start">
+                    <h5 class="fw-bold mb-2">Submission Successful</h5>
+                    <p class="mb-0">
+                        Your assessment has been recorded <strong>anonymously</strong>.<br>
+                        Your feedback contributes to meaningful leadership development.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="p-3 border rounded">
+                    <i class="fas fa-user-secret fa-2x text-primary mb-2"></i>
+                    <h6 class="fw-bold">Anonymous</h6>
+                    <small class="text-muted">Your identity is protected</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 border rounded">
+                    <i class="fas fa-chart-line fa-2x text-success mb-2"></i>
+                    <h6 class="fw-bold">Data Analytics</h6>
+                    <small class="text-muted">Aggregated for insights</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 border rounded">
+                    <i class="fas fa-leaf fa-2x text-warning mb-2"></i>
+                    <h6 class="fw-bold">Paperless</h6>
+                    <small class="text-muted">Environmentally friendly</small>
+                </div>
+            </div>
+        </div>
+        
+        <p class="text-muted mb-4">
+            Your responses will be combined with others to provide valuable feedback 
+            for leadership development. Each submission makes a difference.
+        </p>
+        
+        <button class="btn btn-back" onclick="closeWindow()">
+            <i class="fas fa-check me-2"></i>Close Window
+        </button>
+        
+        <div class="mt-4 pt-4 border-top">
+            <small class="text-muted">
+                <i class="fas fa-clock me-1"></i>
+                Submission ID: {{ session_id[:8] }}... • 
+                {{ now().strftime("%B %d, %Y %I:%M %p") }}
+            </small>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Create confetti effect
+        function createConfetti() {
+            const container = document.getElementById('confettiContainer');
+            const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3'];
+            
+            for (let i = 0; i < 150; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                
+                // Random properties
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.width = Math.random() * 10 + 5 + 'px';
+                confetti.style.height = confetti.style.width;
+                confetti.style.animationDuration = Math.random() * 3 + 2 + 's';
+                confetti.style.animationDelay = Math.random() * 5 + 's';
+                
+                container.appendChild(confetti);
+            }
+        }
+        
+        // Create confetti on load
+        document.addEventListener('DOMContentLoaded', createConfetti);
+        
+        function closeWindow() {
+            window.open('', '_self');
+            window.close();
+            setTimeout(() => {
+                window.location.href = 'about:blank';
+            }, 300);
+        }
+    </script>
+</body>
+</html>

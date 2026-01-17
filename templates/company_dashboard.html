@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #f5f7fb; }
+        .card-shadow { box-shadow: 0 10px 20px rgba(0,0,0,0.06); border: none; }
+        .score-bar { height: 8px; border-radius: 5px; background: #e9ecef; overflow: hidden; }
+        .score-fill { height: 100%; }
+        .score-trusting { background: #10b981; }
+        .score-tasking { background: #3b82f6; }
+        .score-tending { background: #f59e0b; }
+        .tree ul { list-style-type: none; padding-left: 20px; }
+        .tree li { margin: 6px 0; }
+        .tree .node { padding: 6px 10px; background: #fff; border-radius: 6px; border: 1px solid #e5e7eb; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/dashboard">PAM Dashboard</a>
+            <div class="ms-auto">
+                <span class="text-white me-3">{{ user.email }}</span>
+                <a class="btn btn-outline-light btn-sm" href="/logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h2 class="mb-0">{{ company.name }}</h2>
+                <div class="text-muted">Slug: {{ company.slug }}</div>
+            </div>
+            <div>
+                <a class="btn btn-outline-secondary" href="/dashboard">Back</a>
+                <a class="btn btn-primary" href="/form/{{ company.slug }}" target="_blank">Open Assessment Form</a>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card card-shadow p-3">
+                    <div class="text-muted">Managers</div>
+                    <div class="fs-2 fw-bold" id="companyManagers">0</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card card-shadow p-3">
+                    <div class="text-muted">Assessments</div>
+                    <div class="fs-2 fw-bold" id="companyAssessments">0</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card card-shadow p-3">
+                    <div class="text-muted">Employees</div>
+                    <div class="fs-2 fw-bold" id="companyEmployees">0</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card card-shadow p-3">
+                    <div class="text-muted">Avg Trusting</div>
+                    <div class="fs-2 fw-bold" id="companyTrusting">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <div class="card card-shadow p-3">
+                    <div class="text-muted">Avg Tasking</div>
+                    <div class="fs-2 fw-bold" id="companyTasking">0</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card card-shadow p-3">
+                    <div class="text-muted">Avg Tending</div>
+                    <div class="fs-2 fw-bold" id="companyTending">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card card-shadow mb-4">
+            <div class="card-body">
+                <h5 class="mb-3">Assessment Link (Valid for 24 hours)</h5>
+                <div class="d-flex flex-column flex-md-row gap-2 align-items-start align-items-md-center">
+                    <input type="text" class="form-control" id="assessmentLink" readonly>
+                    <button class="btn btn-outline-primary" type="button" onclick="copyLink()">Copy</button>
+                    <button class="btn btn-outline-secondary" type="button" onclick="refreshLink()">Refresh Link</button>
+                </div>
+                <div class="text-muted small mt-2" id="linkExpiry">Loading...</div>
+            </div>
+        </div>
+
+        <div class="card card-shadow mb-4">
+            <div class="card-body">
+                <h5 class="mb-3">Managers</h5>
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Manager</th>
+                                <th>Reports To</th>
+                                <th>Assessments</th>
+                                <th>Trusting</th>
+                                <th>Tasking</th>
+                                <th>Tending</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="managersTableBody">
+                            <tr>
+                                <td colspan="7" class="text-center text-muted">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card card-shadow">
+            <div class="card-body">
+                <h5 class="mb-3">Hierarchy</h5>
+                <div id="hierarchyTree" class="tree text-muted">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const companyId = "{{ company.id }}";
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadOverview();
+            loadManagers();
+            loadHierarchy();
+            loadFormLink(false);
+            setInterval(loadManagers, 30000);
+        });
+
+        async function loadOverview() {
+            const response = await fetch(`/api/companies/${companyId}/overview`);
+            const data = await response.json();
+            if (!data.success) return;
+            document.getElementById('companyManagers').textContent = data.counts.managers;
+            document.getElementById('companyAssessments').textContent = data.counts.assessments;
+            document.getElementById('companyEmployees').textContent = data.counts.employees;
+            document.getElementById('companyTrusting').textContent = data.averages.trusting;
+            document.getElementById('companyTasking').textContent = data.averages.tasking;
+            document.getElementById('companyTending').textContent = data.averages.tending;
+        }
+
+        async function loadManagers() {
+            const response = await fetch(`/api/companies/${companyId}/managers`);
+            const data = await response.json();
+            if (!data.success) return;
+            const body = document.getElementById('managersTableBody');
+            if (!data.managers.length) {
+                body.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No managers yet.</td></tr>';
+                return;
+            }
+            body.innerHTML = data.managers.map(manager => {
+                const scores = manager.category_averages || {trusting: 0, tasking: 0, tending: 0};
+                const managerName = encodeURIComponent(manager.manager_name);
+                return `
+                    <tr>
+                        <td>${manager.manager_name}</td>
+                        <td>${manager.reporting_to || '-'}</td>
+                        <td>${manager.total_assessments || 0}</td>
+                        <td>${scores.trusting || 0}</td>
+                        <td>${scores.tasking || 0}</td>
+                        <td>${scores.tending || 0}</td>
+                        <td>
+                            <a class="btn btn-sm btn-outline-primary me-1" href="/company/${companyId}/manager/${managerName}">View</a>
+                            <a class="btn btn-sm btn-outline-success" href="/api/companies/${companyId}/manager/${managerName}/report.pdf">Download</a>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function loadHierarchy() {
+            const response = await fetch(`/api/companies/${companyId}/hierarchy`);
+            const data = await response.json();
+            if (!data.success) return;
+            const container = document.getElementById('hierarchyTree');
+            if (!data.hierarchy.length) {
+                container.textContent = 'No hierarchy data available.';
+                return;
+            }
+            container.innerHTML = renderTree(data.hierarchy);
+        }
+
+        async function loadFormLink(force) {
+            const response = await fetch(`/api/companies/${companyId}/form-link?force=${force ? 'true' : 'false'}`);
+            const data = await response.json();
+            if (!data.success) return;
+            document.getElementById('assessmentLink').value = data.url;
+            document.getElementById('linkExpiry').textContent = `Expires at: ${new Date(data.expires_at).toLocaleString()}`;
+        }
+
+        function copyLink() {
+            const input = document.getElementById('assessmentLink');
+            input.select();
+            input.setSelectionRange(0, 99999);
+            document.execCommand('copy');
+        }
+
+        function refreshLink() {
+            loadFormLink(true);
+        }
+
+        function renderTree(nodes) {
+            const list = nodes.map(node => {
+                const manager = node.manager || {};
+                const label = `${manager.name || 'Unknown'} (${manager.total_assessments || 0})`;
+                const children = node.direct_reports && node.direct_reports.length
+                    ? `<ul>${renderTree(node.direct_reports)}</ul>` : '';
+                return `<li><div class="node">${label}</div>${children}</li>`;
+            }).join('');
+            return `<ul>${list}</ul>`;
+        }
+    </script>
+</body>
+</html>
