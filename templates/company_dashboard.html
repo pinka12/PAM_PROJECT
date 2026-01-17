@@ -6,127 +6,377 @@
     <title>Company Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background: #f5f7fb; }
-        .card-shadow { box-shadow: 0 10px 20px rgba(0,0,0,0.06); border: none; }
-        .score-bar { height: 8px; border-radius: 5px; background: #e9ecef; overflow: hidden; }
+        @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap');
+
+        :root {
+            --ink: #111827;
+            --muted: #6b7280;
+            --accent: #7c3aed;
+            --surface: #ffffff;
+            --bg: linear-gradient(135deg, #3b1a7a 0%, #5b21b6 45%, #7c3aed 100%);
+            --success: #14b8a6;
+            --warning: #f59e0b;
+            --info: #2563eb;
+        }
+
+        body {
+            font-family: 'Open Sans', sans-serif;
+            color: var(--ink);
+            background: var(--bg);
+            min-height: 100vh;
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .sidenav {
+            width: 260px;
+            background: var(--surface);
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(31, 41, 55, 0.08);
+            position: sticky;
+            top: 20px;
+            height: fit-content;
+        }
+
+        .brand {
+            font-weight: 700;
+            font-size: 20px;
+            margin-bottom: 24px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            color: var(--muted);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .nav-item.active,
+        .nav-item:hover {
+            background: #e8f1ff;
+            color: var(--accent);
+        }
+
+        .main-content {
+            flex: 1;
+            background: rgba(248, 250, 252, 0.9);
+            border-radius: 22px;
+            padding: 24px;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .user-email {
+            color: #1d4ed8;
+            font-weight: 700;
+            margin-right: 10px;
+            font-size: 16px;
+        }
+
+        .hero-card {
+            background: var(--surface);
+            border-radius: 20px;
+            padding: 28px 32px;
+            box-shadow: 0 10px 30px rgba(31, 41, 55, 0.08);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-title {
+            font-size: 42px;
+            font-weight: 800;
+            margin-bottom: 6px;
+            color: var(--accent);
+        }
+
+        .hero-subtitle {
+            color: var(--muted);
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border-radius: 18px;
+            padding: 22px;
+            box-shadow: 0 10px 30px rgba(31, 41, 55, 0.08);
+            border: 1px solid #eef2f7;
+        }
+
+        .stat-label {
+            color: var(--muted);
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+        }
+
+        .stat-value {
+            font-size: 40px;
+            font-weight: 800;
+            margin-top: 6px;
+        }
+
+        .score-bar {
+            height: 8px;
+            border-radius: 999px;
+            background: #e2e8f0;
+            overflow: hidden;
+        }
+
         .score-fill { height: 100%; }
-        .score-trusting { background: #10b981; }
-        .score-tasking { background: #3b82f6; }
-        .score-tending { background: #f59e0b; }
+        .score-trusting { background: var(--success); }
+        .score-tasking { background: var(--info); }
+        .score-tending { background: var(--warning); }
+        .score-overall { background: linear-gradient(90deg, var(--accent) 0%, var(--info) 100%); }
+
+        .card-shadow {
+            background: var(--surface);
+            border-radius: 18px;
+            box-shadow: 0 10px 30px rgba(31, 41, 55, 0.08);
+            border: 1px solid #eef2f7;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background: #1565c0;
+        }
+
         .tree ul { list-style-type: none; padding-left: 20px; }
         .tree li { margin: 6px 0; }
         .tree .node { padding: 6px 10px; background: #fff; border-radius: 6px; border: 1px solid #e5e7eb; }
+
+        .detail-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--muted);
+            font-weight: 700;
+        }
+
+        .detail-value {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .detail-chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: #eef2ff;
+            color: #4c1d95;
+            font-size: 13px;
+            font-weight: 600;
+            margin: 4px 6px 0 0;
+        }
+
+        @media (max-width: 992px) {
+            .layout { flex-direction: column; }
+            .sidenav { width: 100%; position: static; }
+        }
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <a class="navbar-brand" href="/dashboard">PAM Dashboard</a>
-            <div class="ms-auto">
-                <span class="text-white me-3">{{ user.email }}</span>
-                <a class="btn btn-outline-light btn-sm" href="/logout">Logout</a>
-            </div>
-        </div>
-    </nav>
+    <div class="layout">
+        <aside class="sidenav">
+            <div class="brand">PAM Dashboard</div>
+            <a class="nav-item active" href="/dashboard">Dashboard</a>
+            <a class="nav-item" href="/company/new">Add Company</a>
+            <a class="nav-item" href="/logout">Logout</a>
+        </aside>
 
-    <div class="container py-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <div>
-                <h2 class="mb-0">{{ company.name }}</h2>
-                <div class="text-muted">Slug: {{ company.slug }}</div>
+        <main class="main-content">
+            <div class="topbar">
+                <div>
+                    <div class="hero-title">{{ company.name }}</div>
+                    <div class="hero-subtitle">Slug: {{ company.slug }}</div>
+                </div>
+                <div class="d-flex align-items-center flex-wrap gap-2">
+                    <span class="user-email">{{ user.email }}</span>
+                    <a class="btn btn-outline-secondary" href="/dashboard">Back</a>
+                    <a class="btn btn-primary" href="/form/{{ company.slug }}" target="_blank">Open Assessment Form</a>
+                </div>
             </div>
-            <div>
-                <a class="btn btn-outline-secondary" href="/dashboard">Back</a>
-                <a class="btn btn-primary" href="/form/{{ company.slug }}" target="_blank">Open Assessment Form</a>
-            </div>
-        </div>
 
-        <div class="row g-3 mb-4">
-            <div class="col-md-3">
-                <div class="card card-shadow p-3">
-                    <div class="text-muted">Managers</div>
-                    <div class="fs-2 fw-bold" id="companyManagers">0</div>
+            <div class="card card-shadow mb-4">
+                <div class="card-body">
+                    <h5 class="mb-3">Company Hierarchy</h5>
+                    <div id="hierarchyTree" class="tree text-muted">Loading...</div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card card-shadow p-3">
-                    <div class="text-muted">Assessments</div>
-                    <div class="fs-2 fw-bold" id="companyAssessments">0</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card card-shadow p-3">
-                    <div class="text-muted">Employees</div>
-                    <div class="fs-2 fw-bold" id="companyEmployees">0</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card card-shadow p-3">
-                    <div class="text-muted">Avg Trusting</div>
-                    <div class="fs-2 fw-bold" id="companyTrusting">0</div>
-                </div>
-            </div>
-        </div>
 
-        <div class="row g-3 mb-4">
-            <div class="col-md-6">
-                <div class="card card-shadow p-3">
-                    <div class="text-muted">Avg Tasking</div>
-                    <div class="fs-2 fw-bold" id="companyTasking">0</div>
+            <div class="card card-shadow mb-4">
+                <div class="card-body">
+                    <h5 class="mb-3">Company Details</h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="detail-label">Description</div>
+                            <div class="detail-value" id="companyDescription">-</div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="detail-label">Industry</div>
+                            <div class="detail-value" id="companyIndustry">-</div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="detail-label">Owner</div>
+                            <div class="detail-value" id="companyOwner">-</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="detail-label">Address</div>
+                            <div class="detail-value" id="companyAddress">-</div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="detail-label">Employees</div>
+                            <div class="detail-value" id="companyEmployeesDetail">-</div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="detail-label">Managers</div>
+                            <div class="detail-value" id="companyManagersDetail">-</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="detail-label">Contact Emails</div>
+                            <div id="companyContactEmails"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="detail-label">Contact Phones</div>
+                            <div id="companyContactPhones"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="detail-label">Services</div>
+                            <div id="companyServices"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="detail-label">Directors</div>
+                            <div id="companyDirectors"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="detail-label">Founders</div>
+                            <div id="companyFounders"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-6">
-                <div class="card card-shadow p-3">
-                    <div class="text-muted">Avg Tending</div>
-                    <div class="fs-2 fw-bold" id="companyTending">0</div>
-                </div>
-            </div>
-        </div>
 
-        <div class="card card-shadow mb-4">
-            <div class="card-body">
-                <h5 class="mb-3">Assessment Link (Valid for 24 hours)</h5>
-                <div class="d-flex flex-column flex-md-row gap-2 align-items-start align-items-md-center">
-                    <input type="text" class="form-control" id="assessmentLink" readonly>
-                    <button class="btn btn-outline-primary" type="button" onclick="copyLink()">Copy</button>
-                    <button class="btn btn-outline-secondary" type="button" onclick="refreshLink()">Refresh Link</button>
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="stat-label">Managers</div>
+                        <div class="stat-value" id="companyManagers">0</div>
+                    </div>
                 </div>
-                <div class="text-muted small mt-2" id="linkExpiry">Loading...</div>
-            </div>
-        </div>
-
-        <div class="card card-shadow mb-4">
-            <div class="card-body">
-                <h5 class="mb-3">Managers</h5>
-                <div class="table-responsive">
-                    <table class="table align-middle">
-                        <thead>
-                            <tr>
-                                <th>Manager</th>
-                                <th>Reports To</th>
-                                <th>Assessments</th>
-                                <th>Trusting</th>
-                                <th>Tasking</th>
-                                <th>Tending</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="managersTableBody">
-                            <tr>
-                                <td colspan="7" class="text-center text-muted">Loading...</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="stat-label">Assessments</div>
+                        <div class="stat-value" id="companyAssessments">0</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="stat-label">Employees</div>
+                        <div class="stat-value" id="companyEmployees">0</div>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="card card-shadow">
-            <div class="card-body">
-                <h5 class="mb-3">Hierarchy</h5>
-                <div id="hierarchyTree" class="tree text-muted">Loading...</div>
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="stat-label">Avg Trusting</div>
+                        <div class="stat-value" id="companyTrusting">0</div>
+                        <div class="score-bar mt-2"><div class="score-fill score-trusting" id="companyTrustingBar" style="width: 0%"></div></div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="stat-label">Avg Tasking</div>
+                        <div class="stat-value" id="companyTasking">0</div>
+                        <div class="score-bar mt-2"><div class="score-fill score-tasking" id="companyTaskingBar" style="width: 0%"></div></div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="stat-label">Avg Tending</div>
+                        <div class="stat-value" id="companyTending">0</div>
+                        <div class="score-bar mt-2"><div class="score-fill score-tending" id="companyTendingBar" style="width: 0%"></div></div>
+                    </div>
+                </div>
             </div>
-        </div>
+
+            <div class="card card-shadow mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <h5 class="mb-1">Overall Company Score</h5>
+                            <div class="text-muted small">Average across trusting, tasking, and tending.</div>
+                        </div>
+                        <div class="fs-3 fw-bold" id="companyOverallScore">0</div>
+                    </div>
+                    <div class="score-bar mt-3">
+                        <div class="score-fill score-overall" id="companyOverallBar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card card-shadow mb-4">
+                <div class="card-body">
+                    <h5 class="mb-3">Assessment Link (Valid for 24 hours)</h5>
+                    <div class="d-flex flex-column flex-md-row gap-2 align-items-start align-items-md-center">
+                        <input type="text" class="form-control" id="assessmentLink" readonly>
+                        <button class="btn btn-outline-primary" type="button" onclick="copyLink()">Copy</button>
+                        <button class="btn btn-outline-secondary" type="button" onclick="refreshLink()">Refresh Link</button>
+                    </div>
+                    <div class="text-muted small mt-2" id="linkExpiry">Loading...</div>
+                </div>
+            </div>
+
+            <div class="card card-shadow mb-4">
+                <div class="card-body">
+                    <h5 class="mb-3">Managers</h5>
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Manager</th>
+                                    <th>Reports To</th>
+                                    <th>Assessments</th>
+                                    <th>Trusting</th>
+                                    <th>Tasking</th>
+                                    <th>Tending</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="managersTableBody">
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
     </div>
 
     <script>
@@ -144,12 +394,51 @@
             const response = await fetch(`/api/companies/${companyId}/overview`);
             const data = await response.json();
             if (!data.success) return;
+            const trusting = data.averages.trusting || 0;
+            const tasking = data.averages.tasking || 0;
+            const tending = data.averages.tending || 0;
+            const overall = Math.round(((trusting + tasking + tending) / 3) * 10) / 10;
             document.getElementById('companyManagers').textContent = data.counts.managers;
             document.getElementById('companyAssessments').textContent = data.counts.assessments;
             document.getElementById('companyEmployees').textContent = data.counts.employees;
-            document.getElementById('companyTrusting').textContent = data.averages.trusting;
-            document.getElementById('companyTasking').textContent = data.averages.tasking;
-            document.getElementById('companyTending').textContent = data.averages.tending;
+            document.getElementById('companyTrusting').textContent = trusting;
+            document.getElementById('companyTasking').textContent = tasking;
+            document.getElementById('companyTending').textContent = tending;
+            document.getElementById('companyTrustingBar').style.width = `${trusting * 10}%`;
+            document.getElementById('companyTaskingBar').style.width = `${tasking * 10}%`;
+            document.getElementById('companyTendingBar').style.width = `${tending * 10}%`;
+            document.getElementById('companyOverallScore').textContent = overall;
+            document.getElementById('companyOverallBar').style.width = `${overall * 10}%`;
+            updateCompanyDetails(data.company || {});
+        }
+
+        function updateCompanyDetails(company) {
+            document.getElementById('companyDescription').textContent = company.description || '-';
+            document.getElementById('companyIndustry').textContent = company.industry || '-';
+            document.getElementById('companyOwner').textContent = company.owner || '-';
+            document.getElementById('companyAddress').textContent = company.address || '-';
+            document.getElementById('companyEmployeesDetail').textContent = company.employee_count ?? '-';
+            document.getElementById('companyManagersDetail').textContent = company.manager_count ?? '-';
+            renderChips('companyContactEmails', company.contact_emails);
+            renderChips('companyContactPhones', company.contact_phones);
+            renderChips('companyServices', company.services);
+            renderChips('companyDirectors', company.directors);
+            renderChips('companyFounders', company.founders);
+        }
+
+        function renderChips(containerId, values) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            if (!values || !values.length) {
+                container.textContent = '-';
+                return;
+            }
+            values.forEach(value => {
+                const chip = document.createElement('span');
+                chip.className = 'detail-chip';
+                chip.textContent = value;
+                container.appendChild(chip);
+            });
         }
 
         async function loadManagers() {

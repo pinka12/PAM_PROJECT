@@ -6,67 +6,165 @@
     <title>Manager Report</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background: #f5f7fb; }
-        .card-shadow { box-shadow: 0 10px 20px rgba(0,0,0,0.06); border: none; }
+        @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap');
+
+        :root {
+            --ink: #111827;
+            --muted: #6b7280;
+            --primary: #7c3aed;
+            --primary-dark: #5b21b6;
+            --surface: #ffffff;
+            --bg: linear-gradient(135deg, #3b1a7a 0%, #5b21b6 45%, #7c3aed 100%);
+            --shadow: 0 10px 30px rgba(31, 41, 55, 0.08);
+        }
+
+        body {
+            font-family: 'Open Sans', sans-serif;
+            background: var(--bg);
+            color: var(--ink);
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .sidenav {
+            width: 260px;
+            background: var(--surface);
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 20px;
+            height: fit-content;
+        }
+
+        .brand {
+            font-weight: 700;
+            font-size: 20px;
+            margin-bottom: 24px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            color: var(--muted);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .nav-item.active,
+        .nav-item:hover {
+            background: #e8f1ff;
+            color: var(--primary);
+        }
+
+        .main-content {
+            flex: 1;
+            background: rgba(248, 250, 252, 0.9);
+            border-radius: 22px;
+            padding: 24px;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .topbar h2 {
+            font-size: 34px;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .user-email {
+            color: var(--primary);
+            font-weight: 700;
+            margin-right: 10px;
+            font-size: 16px;
+        }
+
+        .card-shadow {
+            background: var(--surface);
+            border-radius: 18px;
+            box-shadow: var(--shadow);
+            border: 1px solid #eef2f7;
+        }
+
         pre { white-space: pre-wrap; }
+
+        @media (max-width: 992px) {
+            .layout { flex-direction: column; }
+            .sidenav { width: 100%; position: static; }
+        }
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <a class="navbar-brand" href="/dashboard">PAM Dashboard</a>
-            <div class="ms-auto">
-                <span class="text-white me-3">{{ user.email }}</span>
-                <a class="btn btn-outline-light btn-sm" href="/logout">Logout</a>
-            </div>
-        </div>
-    </nav>
+    <div class="layout">
+        <aside class="sidenav">
+            <div class="brand">PAM Dashboard</div>
+            <a class="nav-item active" href="/dashboard">Dashboard</a>
+            <a class="nav-item" href="/company/new">Add Company</a>
+            <a class="nav-item" href="/logout">Logout</a>
+        </aside>
 
-    <div class="container py-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <div>
-                <h2 class="mb-0">{{ manager_name }}</h2>
-                <div class="text-muted">{{ company.name }}</div>
+        <main class="main-content">
+            <div class="topbar">
+                <div>
+                    <h2 class="mb-0">{{ manager_name }}</h2>
+                    <div class="text-muted">{{ company.name }}</div>
+                </div>
+                <div class="d-flex align-items-center flex-wrap gap-2">
+                    <span class="user-email">{{ user.email }}</span>
+                    <a class="btn btn-outline-secondary" href="/company/{{ company.id }}">Back</a>
+                    <a class="btn btn-success" id="downloadBtn" href="#">Download PDF</a>
+                </div>
             </div>
-            <div>
-                <a class="btn btn-outline-secondary" href="/company/{{ company.id }}">Back</a>
-                <a class="btn btn-success" id="downloadBtn" href="#">Download PDF</a>
-            </div>
-        </div>
 
-        <div class="row g-3 mb-4">
-            <div class="col-md-3">
-                <div class="card card-shadow p-3">
-                    <div class="text-muted">Assessments</div>
-                    <div class="fs-2 fw-bold" id="totalAssessments">0</div>
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="card card-shadow p-3">
+                        <div class="text-muted">Assessments</div>
+                        <div class="fs-2 fw-bold" id="totalAssessments">0</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card card-shadow p-3">
+                        <div class="text-muted">Trusting</div>
+                        <div class="fs-2 fw-bold" id="trustingScore">0</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card card-shadow p-3">
+                        <div class="text-muted">Tasking</div>
+                        <div class="fs-2 fw-bold" id="taskingScore">0</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card card-shadow p-3">
+                        <div class="text-muted">Tending</div>
+                        <div class="fs-2 fw-bold" id="tendingScore">0</div>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card card-shadow p-3">
-                    <div class="text-muted">Trusting</div>
-                    <div class="fs-2 fw-bold" id="trustingScore">0</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card card-shadow p-3">
-                    <div class="text-muted">Tasking</div>
-                    <div class="fs-2 fw-bold" id="taskingScore">0</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card card-shadow p-3">
-                    <div class="text-muted">Tending</div>
-                    <div class="fs-2 fw-bold" id="tendingScore">0</div>
-                </div>
-            </div>
-        </div>
 
-        <div class="card card-shadow">
-            <div class="card-body">
-                <h5 class="mb-3">AI Report</h5>
-                <pre id="reportText" class="text-muted">Loading...</pre>
+            <div class="card card-shadow">
+                <div class="card-body">
+                    <h5 class="mb-3">AI Report</h5>
+                    <pre id="reportText" class="text-muted">Loading...</pre>
+                </div>
             </div>
-        </div>
+        </main>
     </div>
 
     <script>

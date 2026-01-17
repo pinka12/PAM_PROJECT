@@ -85,6 +85,8 @@ class CompanyBase(BaseModel):
     owner: Optional[str] = None
     directors: List[str] = []
     founders: List[str] = []
+    contact_emails: List[str] = []
+    contact_phones: List[str] = []
 
 class CompanyCreate(CompanyBase):
     """Company creation model"""
@@ -102,6 +104,8 @@ class CompanyUpdate(BaseModel):
     owner: Optional[str] = None
     directors: Optional[List[str]] = None
     founders: Optional[List[str]] = None
+    contact_emails: Optional[List[str]] = None
+    contact_phones: Optional[List[str]] = None
 
 class CompanyInDB(BaseDocument, CompanyBase):
     """Company model as stored in database"""
@@ -142,6 +146,8 @@ class CompanyResponse(BaseModel):
     owner: Optional[str]
     directors: List[str]
     founders: List[str]
+    contact_emails: List[str]
+    contact_phones: List[str]
     created_by: str
     created_at: datetime
     updated_at: datetime

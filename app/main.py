@@ -842,6 +842,12 @@ async def get_dashboard_stats(current_user = Depends(require_admin_user)):
                 "industry": company.get("industry", ""),
                 "employee_count": company.get("employee_count", 0),
                 "owner": company.get("owner", ""),
+                "address": company.get("address", ""),
+                "services": company.get("services", []),
+                "directors": company.get("directors", []),
+                "founders": company.get("founders", []),
+                "contact_emails": company.get("contact_emails", []),
+                "contact_phones": company.get("contact_phones", []),
                 "manager_count": manager_count,
                 "assessment_count": assessment_count,
                 "avg_scores": {
@@ -998,6 +1004,8 @@ async def create_company(
             "owner": data.get("owner", ""),
             "directors": data.get("directors", []),
             "founders": data.get("founders", []),
+            "contact_emails": data.get("contact_emails", []),
+            "contact_phones": data.get("contact_phones", []),
             "created_by": current_user["id"],
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
@@ -1147,18 +1155,38 @@ async def company_overview(company_id: str, current_user = Depends(require_admin
         }}
     ]
     avg_result = await async_managers.aggregate(pipeline).to_list(length=1)
-    avg_scores = avg_result[0] if avg_result else {
-        "avg_trusting": 0,
-        "avg_tasking": 0,
-        "avg_tending": 0
-    }
+    avg_scores = avg_result[0] if avg_result else {}
+
+    if not avg_scores or all(avg_scores.get(key) is None for key in ["avg_trusting", "avg_tasking", "avg_tending"]):
+        assessment_pipeline = [
+            {"$match": {"company_id": company_id}},
+            {"$group": {
+                "_id": None,
+                "avg_trusting": {"$avg": "$category_averages.trusting"},
+                "avg_tasking": {"$avg": "$category_averages.tasking"},
+                "avg_tending": {"$avg": "$category_averages.tending"}
+            }}
+        ]
+        assessment_result = await async_assessments.aggregate(assessment_pipeline).to_list(length=1)
+        avg_scores = assessment_result[0] if assessment_result else {}
 
     return {
         "success": True,
         "company": {
             "id": company["id"],
             "name": company["name"],
-            "slug": company["slug"]
+            "slug": company["slug"],
+            "description": company.get("description", ""),
+            "industry": company.get("industry", ""),
+            "owner": company.get("owner", ""),
+            "address": company.get("address", ""),
+            "services": company.get("services", []),
+            "directors": company.get("directors", []),
+            "founders": company.get("founders", []),
+            "contact_emails": company.get("contact_emails", []),
+            "contact_phones": company.get("contact_phones", []),
+            "employee_count": company.get("employee_count", 0),
+            "manager_count": company.get("manager_count", 0)
         },
         "counts": {
             "managers": manager_count,
@@ -1166,9 +1194,9 @@ async def company_overview(company_id: str, current_user = Depends(require_admin
             "employees": company.get("employee_count", 0)
         },
         "averages": {
-            "trusting": round(avg_scores.get("avg_trusting", 0), 1),
-            "tasking": round(avg_scores.get("avg_tasking", 0), 1),
-            "tending": round(avg_scores.get("avg_tending", 0), 1)
+            "trusting": round(avg_scores.get("avg_trusting", 0) or 0, 1),
+            "tasking": round(avg_scores.get("avg_tasking", 0) or 0, 1),
+            "tending": round(avg_scores.get("avg_tending", 0) or 0, 1)
         }
     }
 
@@ -1205,8 +1233,14 @@ async def update_company(company_id: str, request: Request, current_user = Depen
         "description": data.get("description", ""),
         "industry": data.get("industry", ""),
         "employee_count": int(data.get("employee_count", 0)),
+        "manager_count": int(data.get("manager_count", 0)),
         "address": data.get("address", ""),
         "owner": data.get("owner", ""),
+        "services": data.get("services", []),
+        "directors": data.get("directors", []),
+        "founders": data.get("founders", []),
+        "contact_emails": data.get("contact_emails", []),
+        "contact_phones": data.get("contact_phones", []),
         "updated_at": datetime.utcnow()
     }
     await async_companies.update_one({"id": company_id}, {"$set": update_fields})

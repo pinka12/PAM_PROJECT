@@ -107,9 +107,8 @@ async def init_database():
         # Create or update admin user
         admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
         admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
-        ensure_admin = os.getenv("ADMIN_ENSURE", "false").lower() == "true"
 
-        if users.count_documents({}) == 0 or ensure_admin:
+        if admin_email:
             from app.auth import get_password_hash
             admin_user = {
                 "id": "admin_001",
@@ -129,7 +128,7 @@ async def init_database():
                 users.update_one({"email": admin_email}, {"$set": admin_user}, upsert=True)
             print(f"Admin ensured (email: {admin_email})")
         
-        print(f"✅ Database '{DB_NAME}' initialized successfully")
+            print(f"✅ Database '{DB_NAME}' initialized successfully")
         
     except Exception as e:
         print(f"❌ Database initialization error: {e}")
