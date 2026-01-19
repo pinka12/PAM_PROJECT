@@ -688,6 +688,25 @@ def _send_activation_email(to_email: str, activation_url: str) -> None:
             server.login(settings["user"], settings["password"])
         server.send_message(message)
 
+def _send_company_report_email(to_email: str, subject: str, body: str) -> None:
+    settings = _get_smtp_settings()
+    if not settings["host"] or not settings["from_email"]:
+        raise ValueError("SMTP is not configured")
+
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = settings["from_email"]
+    message["To"] = to_email
+    message.set_content(body)
+
+    context = ssl.create_default_context()
+    with smtplib.SMTP(settings["host"], settings["port"]) as server:
+        if settings["use_tls"]:
+            server.starttls(context=context)
+        if settings["user"] and settings["password"]:
+            server.login(settings["user"], settings["password"])
+        server.send_message(message)
+
 @app.post("/api/auth/register")
 async def register_user(
     request: Request,
@@ -1100,32 +1119,43 @@ async def manager_report_page(company_id: str, manager_name: str, request: Reque
     })
 
 def _build_company_hierarchy(managers: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    manager_map = {}
+    def normalize_name(value: str) -> str:
+        return " ".join((value or "").strip().lower().split())
+
+    manager_map: Dict[str, Dict[str, Any]] = {}
     reports_map: Dict[str, List[str]] = {}
+    all_names: Dict[str, str] = {}
 
     for manager in managers:
-        key = manager.get("manager_name", "").lower()
+        raw_name = manager.get("manager_name", "")
+        key = normalize_name(raw_name)
+        if not key:
+            continue
         manager_map[key] = manager
+        all_names[key] = raw_name or key
         reports_map.setdefault(key, [])
 
     for manager in managers:
-        manager_name = manager.get("manager_name", "")
-        reporting_to = manager.get("reporting_to", "")
-        if reporting_to:
-            reports_map.setdefault(reporting_to.lower(), []).append(manager_name.lower())
+        manager_name = normalize_name(manager.get("manager_name", ""))
+        reporting_to = normalize_name(manager.get("reporting_to", ""))
+        if manager_name and reporting_to:
+            reports_map.setdefault(reporting_to, []).append(manager_name)
+            all_names.setdefault(reporting_to, manager.get("reporting_to", "") or reporting_to)
 
     roots = []
-    for manager in managers:
-        reporting_to = manager.get("reporting_to", "")
-        if not reporting_to or reporting_to.lower() not in manager_map:
-            roots.append(manager.get("manager_name", "").lower())
+    for name_key in all_names.keys():
+        reporting_to = ""
+        if name_key in manager_map:
+            reporting_to = normalize_name(manager_map[name_key].get("reporting_to", ""))
+        if not reporting_to or reporting_to not in all_names:
+            roots.append(name_key)
 
     def build_node(name_key: str) -> Dict[str, Any]:
         manager = manager_map.get(name_key, {})
         children = [build_node(child) for child in reports_map.get(name_key, [])]
         return {
             "manager": {
-                "name": manager.get("manager_name", ""),
+                "name": manager.get("manager_name", "") or all_names.get(name_key, ""),
                 "reporting_to": manager.get("reporting_to", ""),
                 "total_assessments": manager.get("total_assessments", 0),
                 "category_averages": manager.get("category_averages", {})
@@ -1199,6 +1229,42 @@ async def company_overview(company_id: str, current_user = Depends(require_admin
             "tending": round(avg_scores.get("avg_tending", 0) or 0, 1)
         }
     }
+
+@app.post("/api/companies/{company_id}/email-report")
+async def email_company_report(company_id: str, request: Request, current_user = Depends(require_admin_user)):
+    data = await request.json()
+    to_email = (data.get("email") or "").strip().lower()
+    if not to_email:
+        raise HTTPException(status_code=400, detail="Email is required")
+
+    overview = await company_overview(company_id, current_user)
+    company = overview.get("company", {})
+    counts = overview.get("counts", {})
+    averages = overview.get("averages", {})
+
+    trusting = averages.get("trusting", 0)
+    tasking = averages.get("tasking", 0)
+    tending = averages.get("tending", 0)
+    overall = round((trusting + tasking + tending) / 3, 1)
+
+    dashboard_url = f"{str(request.base_url).rstrip('/')}/company/{company_id}"
+    subject = f"Company Report - {company.get('name', 'Company')}"
+    body = (
+        f"Company Report: {company.get('name', '')}\n"
+        f"Industry: {company.get('industry', '-')}\n"
+        f"Owner: {company.get('owner', '-')}\n"
+        f"Managers: {counts.get('managers', 0)}\n"
+        f"Assessments: {counts.get('assessments', 0)}\n\n"
+        f"Average Scores\n"
+        f"Trusting: {trusting}\n"
+        f"Tasking: {tasking}\n"
+        f"Tending: {tending}\n"
+        f"Overall: {overall}\n\n"
+        f"Dashboard: {dashboard_url}\n"
+    )
+
+    _send_company_report_email(to_email, subject, body)
+    return {"success": True, "message": f"Report sent to {to_email}"}
 
 @app.get("/api/companies/{company_id}/managers")
 async def company_managers(company_id: str, current_user = Depends(require_admin_user)):

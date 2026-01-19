@@ -24,54 +24,14 @@
             color: var(--ink);
             background: var(--bg);
             min-height: 100vh;
-        }
-
-        .layout {
-            display: flex;
-            min-height: 100vh;
             padding: 20px;
-            gap: 20px;
-        }
-
-        .sidenav {
-            width: 260px;
-            background: var(--surface);
-            border-radius: 20px;
-            padding: 24px;
-            box-shadow: 0 10px 30px rgba(31, 41, 55, 0.08);
-            position: sticky;
-            top: 20px;
-            height: fit-content;
-        }
-
-        .brand {
-            font-weight: 700;
-            font-size: 20px;
-            margin-bottom: 24px;
-        }
-
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 12px 14px;
-            border-radius: 12px;
-            color: var(--muted);
-            text-decoration: none;
-            font-weight: 600;
-        }
-
-        .nav-item.active,
-        .nav-item:hover {
-            background: #e8f1ff;
-            color: var(--accent);
         }
 
         .main-content {
-            flex: 1;
             background: rgba(248, 250, 252, 0.9);
             border-radius: 22px;
             padding: 24px;
+            min-height: calc(100vh - 40px);
         }
 
         .topbar {
@@ -81,6 +41,20 @@
             flex-wrap: wrap;
             gap: 12px;
             margin-bottom: 24px;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1.05fr 0.95fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        .left-column,
+        .right-column {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
         }
 
         .hero-card {
@@ -160,9 +134,119 @@
             background: #1565c0;
         }
 
-        .tree ul { list-style-type: none; padding-left: 20px; }
-        .tree li { margin: 6px 0; }
-        .tree .node { padding: 6px 10px; background: #fff; border-radius: 6px; border: 1px solid #e5e7eb; }
+        .hierarchy-card {
+            min-height: 520px;
+        }
+
+        .tree {
+            min-height: 420px;
+            padding: 10px 0;
+            overflow: hidden;
+            background: radial-gradient(circle at top, rgba(99, 102, 241, 0.08), rgba(255, 255, 255, 0) 60%);
+            border-radius: 18px;
+        }
+
+        .hierarchy-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .hierarchy-zoom-btn {
+            border: 1px solid #cbd5f5;
+            background: #ffffff;
+            color: #1f2937;
+            border-radius: 10px;
+            padding: 6px 10px;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .hierarchy-zoom-btn:hover {
+            background: #eef2ff;
+        }
+
+        .hierarchy-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.65);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 20px;
+        }
+
+        .hierarchy-modal.active {
+            display: flex;
+        }
+
+        .hierarchy-modal-card {
+            width: min(1400px, 95vw);
+            height: min(900px, 90vh);
+            background: #f8fafc;
+            border-radius: 20px;
+            box-shadow: 0 30px 60px rgba(15, 23, 42, 0.35);
+            display: flex;
+            flex-direction: column;
+            padding: 18px;
+            gap: 12px;
+        }
+
+        .hierarchy-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .hierarchy-modal-title {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .hierarchy-modal-close {
+            border: none;
+            background: #e2e8f0;
+            color: #0f172a;
+            border-radius: 12px;
+            padding: 6px 10px;
+            font-weight: 700;
+        }
+
+        .hierarchy-modal-body {
+            flex: 1;
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 12px;
+            overflow: hidden;
+        }
+
+        .hierarchy-modal-body .tree {
+            min-height: 100%;
+        }
+
+        #hierarchyTree {
+            width: 100%;
+            height: 100%;
+        }
+
+        #hierarchyTree svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .org-node-title {
+            font-size: 12px;
+            font-weight: 700;
+            fill: #0f172a;
+        }
+
+        .org-node-meta {
+            font-size: 11px;
+            font-weight: 600;
+            fill: #6b7280;
+        }
 
         .detail-label {
             font-size: 12px;
@@ -271,40 +355,41 @@
         }
 
         @media (max-width: 992px) {
-            .layout { flex-direction: column; }
-            .sidenav { width: 100%; position: static; }
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            .tree { min-height: 360px; }
         }
     </style>
 </head>
 <body>
-    <div class="layout">
-        <aside class="sidenav">
-            <div class="brand">MAP Dashboard</div>
-            <a class="nav-item active" href="/dashboard">Dashboard</a>
-            <a class="nav-item" href="/company/new">Add Company</a>
-            <a class="nav-item" href="/logout">Logout</a>
-        </aside>
-
-        <main class="main-content">
-            <div class="topbar">
-                <div>
-                    <div class="hero-title">{{ company.name }}</div>
-                    <div class="hero-subtitle">Slug: {{ company.slug }}</div>
-                </div>
-                <div class="d-flex align-items-center flex-wrap gap-2">
-                    <a class="btn btn-outline-secondary" href="/dashboard">Back</a>
-                    <a class="btn btn-primary" href="/form/{{ company.slug }}" target="_blank">Open Assessment Form</a>
-                </div>
+    <main class="main-content">
+        <div class="topbar">
+            <div>
+                <div class="hero-title">{{ company.name }}</div>
+                <div class="hero-subtitle">Slug: {{ company.slug }}</div>
             </div>
+            <div class="d-flex align-items-center flex-wrap gap-2">
+                <a class="btn btn-outline-secondary" href="/dashboard">Back</a>
+                <a class="btn btn-primary" href="/form/{{ company.slug }}" target="_blank">Open Assessment Form</a>
+            </div>
+        </div>
 
-            <div class="card card-shadow mb-4">
+        <div class="dashboard-grid">
+            <div class="left-column">
+            <div class="card card-shadow hierarchy-card">
                 <div class="card-body">
-                    <h5 class="mb-3">Company Hierarchy</h5>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">Company Hierarchy</h5>
+                        <div class="hierarchy-actions">
+                            <button class="hierarchy-zoom-btn" type="button" onclick="openHierarchyModal()">Zoom</button>
+                        </div>
+                    </div>
                     <div id="hierarchyTree" class="tree text-muted">Loading...</div>
                 </div>
             </div>
 
-            <div class="card card-shadow mb-4">
+            <div class="card card-shadow">
                 <div class="card-body">
                     <h5 class="mb-3">Company Details</h5>
                     <div class="row g-3">
@@ -356,7 +441,10 @@
                 </div>
             </div>
 
-            <div class="row g-3 mb-4">
+            <div class="d-flex align-items-center justify-content-between">
+                <h5 class="mb-0">Average Category Scores</h5>
+            </div>
+            <div class="row g-3">
                 <div class="col-md-4">
                     <div class="stat-card">
                         <div class="stat-label">Managers</div>
@@ -377,7 +465,7 @@
                 </div>
             </div>
 
-            <div class="row g-3 mb-4">
+            <div class="row g-3">
                 <div class="col-md-4">
                     <div class="stat-card">
                         <div class="stat-label">Avg Trusting</div>
@@ -401,7 +489,7 @@
                 </div>
             </div>
 
-            <div class="card card-shadow mb-4">
+            <div class="card card-shadow">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <div>
@@ -416,7 +504,7 @@
                 </div>
             </div>
 
-            <div class="card card-shadow mb-4">
+            <div class="card card-shadow">
                 <div class="card-body">
                     <h5 class="mb-3">Assessment Link (Valid for 24 hours)</h5>
                     <div class="d-flex flex-column flex-md-row gap-2 align-items-start align-items-md-center">
@@ -428,7 +516,20 @@
                 </div>
             </div>
 
-            <div class="card card-shadow mb-4">
+            <div class="card card-shadow">
+                <div class="card-body">
+                    <h5 class="mb-3">Email Company Report</h5>
+                    <div class="d-flex flex-column flex-md-row gap-2 align-items-start align-items-md-center">
+                        <input type="email" class="form-control" id="reportEmail" placeholder="Enter recipient email">
+                        <button class="btn btn-primary" type="button" onclick="sendCompanyReport()">Send Report</button>
+                    </div>
+                    <div class="text-muted small mt-2" id="reportEmailStatus"></div>
+                </div>
+            </div>
+            </div>
+
+            <div class="right-column">
+            <div class="card card-shadow">
                 <div class="card-body">
                     <h5 class="mb-3">Managers</h5>
                     <div class="table-responsive">
@@ -451,11 +552,25 @@
                     </div>
                 </div>
             </div>
-        </main>
+            </div>
+        </div>
+    </main>
+
+    <div id="hierarchyModal" class="hierarchy-modal" aria-hidden="true">
+        <div class="hierarchy-modal-card">
+            <div class="hierarchy-modal-header">
+                <div class="hierarchy-modal-title">Company Hierarchy</div>
+                <button class="hierarchy-modal-close" type="button" onclick="closeHierarchyModal()">Close</button>
+            </div>
+            <div class="hierarchy-modal-body">
+                <div id="hierarchyModalChart" class="tree text-muted"></div>
+            </div>
+        </div>
     </div>
 
     <script>
         const companyId = "{{ company.id }}";
+        let hierarchyCache = [];
 
         document.addEventListener('DOMContentLoaded', () => {
             loadOverview();
@@ -549,12 +664,8 @@
             const response = await fetch(`/api/companies/${companyId}/hierarchy`);
             const data = await response.json();
             if (!data.success) return;
-            const container = document.getElementById('hierarchyTree');
-            if (!data.hierarchy.length) {
-                container.textContent = 'No hierarchy data available.';
-                return;
-            }
-            container.innerHTML = renderTree(data.hierarchy);
+            hierarchyCache = data.hierarchy || [];
+            renderOrgChart(hierarchyCache, 'hierarchyTree');
         }
 
         async function loadFormLink(force) {
@@ -576,15 +687,191 @@
             loadFormLink(true);
         }
 
-        function renderTree(nodes) {
-            const list = nodes.map(node => {
-                const manager = node.manager || {};
-                const label = `${manager.name || 'Unknown'} (${manager.total_assessments || 0})`;
-                const children = node.direct_reports && node.direct_reports.length
-                    ? `<ul>${renderTree(node.direct_reports)}</ul>` : '';
-                return `<li><div class="node">${label}</div>${children}</li>`;
+        async function sendCompanyReport() {
+            const input = document.getElementById('reportEmail');
+            const status = document.getElementById('reportEmailStatus');
+            const email = input.value.trim();
+            if (!email) {
+                status.textContent = 'Please enter an email address.';
+                return;
+            }
+            status.textContent = 'Sending...';
+            try {
+                const response = await fetch(`/api/companies/${companyId}/email-report`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    status.textContent = data.detail || data.message || 'Failed to send report.';
+                    return;
+                }
+                status.textContent = data.message || 'Report sent.';
+            } catch (error) {
+                status.textContent = 'Failed to send report.';
+            }
+        }
+
+        function renderOrgChart(hierarchy, containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            const list = Array.isArray(hierarchy) ? hierarchy : (hierarchy ? [hierarchy] : []);
+            if (!list.length) {
+                container.textContent = 'No hierarchy data available.';
+                return;
+            }
+
+            try {
+                const NODE_W = 170;
+                const NODE_H = 100;
+                const H_GAP = 50;
+                const V_GAP = 90;
+                const PAD = 40;
+                const COLORS = ['#0ea5e9', '#14b8a6', '#38bdf8', '#2dd4bf', '#0284c7'];
+
+                function measure(node) {
+                    const children = node.direct_reports || [];
+                    if (!children.length) {
+                        node._width = NODE_W;
+                        return node._width;
+                    }
+                    let total = 0;
+                    children.forEach((child, idx) => {
+                        total += measure(child);
+                        if (idx < children.length - 1) total += H_GAP;
+                    });
+                    node._width = Math.max(NODE_W, total);
+                    return node._width;
+                }
+
+                function layout(node, x, y, level, nodes, links) {
+                    const children = node.direct_reports || [];
+                    const nodeX = x + (node._width - NODE_W) / 2;
+                    const nodeY = y;
+                    nodes.push({
+                        id: Math.random().toString(36).slice(2),
+                        name: node.manager?.name || 'Unknown',
+                        assessments: node.manager?.total_assessments || 0,
+                        level,
+                        x: nodeX,
+                        y: nodeY
+                    });
+                    if (!children.length) {
+                        return;
+                    }
+                    let childX = x;
+                    children.forEach(child => {
+                        const childXCenter = childX + child._width / 2;
+                        links.push({
+                            from: { x: nodeX + NODE_W / 2, y: nodeY + NODE_H },
+                            to: { x: childXCenter, y: nodeY + NODE_H + V_GAP }
+                        });
+                        layout(child, childX, y + NODE_H + V_GAP, level + 1, nodes, links);
+                        childX += child._width + H_GAP;
+                    });
+                }
+
+                const nodes = [];
+                const links = [];
+
+                list.forEach(root => measure(root));
+                let totalWidth = list.reduce((sum, root) => sum + root._width, 0);
+                if (list.length > 1) totalWidth += H_GAP * (list.length - 1);
+
+                let startX = PAD;
+                const height = getTreeDepth(list) * (NODE_H + V_GAP) + PAD * 2;
+                const width = Math.max(totalWidth + PAD * 2, container.clientWidth || 600);
+
+                list.forEach(root => {
+                    layout(root, startX, PAD, 0, nodes, links);
+                    startX += root._width + H_GAP;
+                });
+
+                container.innerHTML = buildSvg(nodes, links, width, height, NODE_W, NODE_H, COLORS);
+            } catch (error) {
+                container.textContent = `Failed to render hierarchy: ${error.message || error}`;
+            }
+        }
+
+        function getTreeDepth(nodes) {
+            let maxDepth = 1;
+            function walk(node, depth) {
+                maxDepth = Math.max(maxDepth, depth);
+                const children = node.direct_reports || [];
+                children.forEach(child => walk(child, depth + 1));
+            }
+            nodes.forEach(node => walk(node, 1));
+            return maxDepth;
+        }
+
+        function buildSvg(nodes, links, width, height, nodeW, nodeH, colors) {
+            const defs = `
+                <defs>
+                    <marker id="arrow" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto">
+                        <path d="M0,0 L6,3 L0,6" fill="#94a3b8"></path>
+                    </marker>
+                </defs>
+            `;
+            const linkPaths = links.map(link => {
+                const midY = (link.from.y + link.to.y) / 2;
+                return `
+                    <path d="M${link.from.x},${link.from.y} V${midY} H${link.to.x} V${link.to.y}"
+                        fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+                `;
             }).join('');
-            return `<ul>${list}</ul>`;
+
+            const nodeRects = nodes.map(node => {
+                const color = colors[node.level % colors.length];
+                const cx = node.x + nodeW / 2;
+                const cy = node.y + 26;
+                const name = escapeHtml(node.name);
+                return `
+                    <g>
+                        <rect x="${node.x}" y="${node.y}" rx="14" ry="14" width="${nodeW}" height="${nodeH}"
+                              fill="#ffffff" stroke="#e5e7eb" stroke-width="1.2"></rect>
+                        <circle cx="${cx}" cy="${cy}" r="20" fill="#ffffff" stroke="${color}" stroke-width="4"></circle>
+                        <path d="M${cx} ${cy - 6} a6 6 0 1 0 0.001 0 M${cx - 10} ${cy + 12} a10 10 0 0 1 20 0"
+                              fill="none" stroke="#1f2937" stroke-width="2" stroke-linecap="round"/>
+                        <rect x="${node.x + 20}" y="${node.y + 50}" rx="999" ry="999" width="${nodeW - 40}" height="20"
+                              fill="${color}"></rect>
+                        <text x="${cx}" y="${node.y + 65}" text-anchor="middle" class="org-node-title" fill="#ffffff">
+                            ${name}
+                        </text>
+                        <text x="${cx}" y="${node.y + 85}" text-anchor="middle" class="org-node-meta">
+                            Assessments: ${node.assessments}
+                        </text>
+                    </g>
+                `;
+            }).join('');
+
+            return `
+                <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">
+                    ${defs}
+                    ${linkPaths}
+                    ${nodeRects}
+                </svg>
+            `;
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function openHierarchyModal() {
+            const modal = document.getElementById('hierarchyModal');
+            modal.classList.add('active');
+            renderOrgChart(hierarchyCache, 'hierarchyModalChart');
+        }
+
+        function closeHierarchyModal() {
+            const modal = document.getElementById('hierarchyModal');
+            modal.classList.remove('active');
         }
 
         function renderManagerCharts(managers) {

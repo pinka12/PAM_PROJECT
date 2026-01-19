@@ -379,6 +379,7 @@
                     <table class="table table-borderless align-middle mb-0">
                         <thead>
                             <tr>
+                                <th>#</th>
                                 <th>Company</th>
                                 <th>Managers</th>
                                 <th>Assessments</th>
@@ -510,14 +511,14 @@
                 body.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No companies found.</td></tr>';
                 return;
             }
-            body.innerHTML = companies.map(company => {
+            body.innerHTML = companies.map((company, index) => {
                 const scores = company.avg_scores || {trusting: 0, tasking: 0, tending: 0};
                 const chartId = `score-chart-${company.id || company.slug}`;
                 return `
                     <tr>
+                        <td>${index + 1}</td>
                         <td>
                             <div class="fw-bold">${company.name}</div>
-                            <div class="text-muted small">${company.slug}</div>
                         </td>
                         <td>${company.manager_count}</td>
                         <td>${company.assessment_count}</td>
