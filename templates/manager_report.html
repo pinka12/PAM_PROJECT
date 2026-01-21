@@ -11,10 +11,11 @@
         :root {
             --ink: #111827;
             --muted: #6b7280;
-            --primary: #7c3aed;
-            --primary-dark: #5b21b6;
+            --primary: #1d4ed8;
+            --primary-dark: #1e40af;
+            --accent: #f59e0b;
             --surface: #ffffff;
-            --bg: linear-gradient(135deg, #3b1a7a 0%, #5b21b6 45%, #7c3aed 100%);
+            --bg: linear-gradient(135deg, #0f3b8f 0%, #1d4ed8 55%, #f59e0b 100%);
             --shadow: 0 10px 30px rgba(31, 41, 55, 0.08);
         }
 
@@ -43,10 +44,14 @@
         }
 
         .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
             font-weight: 700;
             font-size: 20px;
             margin-bottom: 24px;
         }
+
 
         .nav-item {
             display: flex;
@@ -81,10 +86,32 @@
             margin-bottom: 24px;
         }
 
-        .topbar h2 {
+        .page-header {
+            background: var(--bg);
+            border-radius: 18px;
+            padding: 16px 18px;
+            color: #fff;
+            box-shadow: 0 12px 24px rgba(15, 59, 143, 0.2);
+        }
+
+        .page-header h2 {
             font-size: 34px;
             font-weight: 800;
-            color: var(--primary);
+            color: #fff;
+        }
+
+        .page-header .text-muted {
+            color: rgba(255, 255, 255, 0.8) !important;
+        }
+
+        .page-header .btn-outline-secondary {
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.7);
+        }
+
+        .page-header .btn-outline-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
         }
 
         .card-shadow {
@@ -189,7 +216,7 @@
         </aside>
 
         <main class="main-content">
-            <div class="topbar">
+            <div class="topbar page-header">
                 <div>
                     <h2 class="mb-0">{{ manager_name }}</h2>
                     <div class="text-muted">{{ company.name }}</div>

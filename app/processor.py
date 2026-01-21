@@ -132,6 +132,7 @@ def process_form_answers(raw_answers: Dict[str, Any]) -> Dict[str, Any]:
     per_question_scores = {}
     segment_totals = {"STR": 0, "STA": 0, "STE": 0}
     category_totals = {"trusting": 0, "tasking": 0, "tending": 0}
+    answered_questions = set()
     
     for full_question, answer_list in raw_answers.items():
         if not answer_list:
@@ -174,8 +175,16 @@ def process_form_answers(raw_answers: Dict[str, Any]) -> Dict[str, Any]:
         
         segment_totals[segment] += score
         category_totals[category] += score
+        answered_questions.add(question_code)
     
     overall_score = sum(segment_totals.values())
+    missing_questions = sorted(set(QUESTION_SCHEMA.keys()) - answered_questions)
+    manager_fields_present = sum(
+        1 for key in ["manager_name", "reporting_to"] if manager_info.get(key)
+    )
+    is_complete_response = (
+        len(answered_questions) == len(QUESTION_SCHEMA) and manager_fields_present == 2
+    )
     
     return {
         "manager_info": manager_info,
@@ -187,6 +196,12 @@ def process_form_answers(raw_answers: Dict[str, Any]) -> Dict[str, Any]:
             "schema_version": "PAM_v1",
             "max_per_question": 3,
             "total_questions": len(QUESTION_SCHEMA),
+            "answered_questions": len(answered_questions),
+            "missing_questions": missing_questions,
+            "expected_response_fields": len(QUESTION_SCHEMA) + 2,
+            "manager_fields_present": manager_fields_present,
+            "is_complete_response": is_complete_response,
+            "raw_response_fields": len(raw_answers),
             "processed_at": datetime.now(timezone.utc).isoformat(),
         },
     }
@@ -226,13 +241,14 @@ def aggregate_manager_scores(assessments: list) -> Dict[str, Any]:
     manager_info = processed.get("manager_info", {})
     
     # Calculate statistics
+    total_assessments = len(assessments)
     aggregated = {
         "manager_name": manager_info.get("manager_name", ""),
         "reporting_to": manager_info.get("reporting_to", ""),
         "raw_manager_name": manager_info.get("raw_manager_name", ""),
         "raw_reporting_to": manager_info.get("raw_reporting_to", ""),
         
-        "total_assessments": len(assessments),
+        "total_assessments": total_assessments,
         "first_assessment": min(all_timestamps) if all_timestamps else "",
         "last_assessment": max(all_timestamps) if all_timestamps else "",
         
@@ -240,9 +256,9 @@ def aggregate_manager_scores(assessments: list) -> Dict[str, Any]:
         "category_totals": category_totals,
         
         "category_averages": {
-            "trusting": statistics.mean(category_scores_list["trusting"]) if category_scores_list["trusting"] else 0,
-            "tasking": statistics.mean(category_scores_list["tasking"]) if category_scores_list["tasking"] else 0,
-            "tending": statistics.mean(category_scores_list["tending"]) if category_scores_list["tending"] else 0
+            "trusting": round(category_totals["trusting"] / total_assessments, 2) if total_assessments else 0,
+            "tasking": round(category_totals["tasking"] / total_assessments, 2) if total_assessments else 0,
+            "tending": round(category_totals["tending"] / total_assessments, 2) if total_assessments else 0
         },
         
         # Score distribution

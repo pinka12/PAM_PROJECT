@@ -1705,9 +1705,6 @@ async def update_manager_aggregation_saas(company_id: str, manager_name: str):
                 "trusting_sum": {"$sum": "$category_scores.trusting"},
                 "tasking_sum": {"$sum": "$category_scores.tasking"},
                 "tending_sum": {"$sum": "$category_scores.tending"},
-                "trusting_avg": {"$avg": "$category_averages.trusting"},
-                "tasking_avg": {"$avg": "$category_averages.tasking"},
-                "tending_avg": {"$avg": "$category_averages.tending"},
                 "first_assessment": {"$min": "$submission_time"},
                 "last_assessment": {"$max": "$submission_time"}
             }}
@@ -1726,22 +1723,35 @@ async def update_manager_aggregation_saas(company_id: str, manager_name: str):
             if latest_assessment:
                 reporting_to = latest_assessment.get("reporting_to", "")
             
-            # Calculate averages from stored averages
-            category_averages = {
-                "trusting": round(agg.get("trusting_avg", 0), 1),
-                "tasking": round(agg.get("tasking_avg", 0), 1),
-                "tending": round(agg.get("tending_avg", 0), 1)
-            }
-            
             # Calculate category totals
             category_totals = {
                 "trusting": agg["trusting_sum"],
                 "tasking": agg["tasking_sum"],
                 "tending": agg["tending_sum"]
             }
+
+            # Calculate averages from category totals (sum / count)
+            category_averages = {
+                "trusting": round(category_totals["trusting"] / total_assessments, 2) if total_assessments else 0,
+                "tasking": round(category_totals["tasking"] / total_assessments, 2) if total_assessments else 0,
+                "tending": round(category_totals["tending"] / total_assessments, 2) if total_assessments else 0
+            }
             
             # Calculate confidence score based on number of assessments
             confidence_score = min(total_assessments * 5, 100)
+
+            assessment_docs = await async_assessments.find(
+                {"company_id": company_id, "manager_name": manager_name},
+                {"submission_time": 1, "category_scores": 1, "overall_score": 1}
+            ).sort("submission_time", 1).to_list(length=10000)
+            assessment_summaries = []
+            for index, assessment in enumerate(assessment_docs, start=1):
+                assessment_summaries.append({
+                    "sequence": index,
+                    "submitted_at": assessment.get("submission_time"),
+                    "category_totals": assessment.get("category_scores", {}),
+                    "overall_score": assessment.get("overall_score", 0)
+                })
             
             # Update or create manager record
             manager_data = {
@@ -1751,6 +1761,7 @@ async def update_manager_aggregation_saas(company_id: str, manager_name: str):
                 "total_assessments": total_assessments,
                 "category_averages": category_averages,
                 "category_totals": category_totals,
+                "assessment_summaries": assessment_summaries,
                 "confidence_score": confidence_score,
                 "first_assessment": agg["first_assessment"],
                 "last_assessment": agg["last_assessment"],

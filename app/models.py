@@ -185,6 +185,7 @@ class ManagerInDB(BaseDocument, ManagerBase):
         "tasking": 0,
         "tending": 0
     })
+    assessment_summaries: List[Dict[str, Any]] = Field(default_factory=list)
     confidence_score: int = 0
     first_assessment: Optional[datetime] = None
     last_assessment: Optional[datetime] = None
@@ -230,6 +231,7 @@ class ManagerResponse(BaseModel):
     total_assessments: int
     category_averages: Dict[str, float]
     category_totals: Dict[str, int]
+    assessment_summaries: List[Dict[str, Any]] = Field(default_factory=list)
     confidence_score: int
     first_assessment: Optional[datetime]
     last_assessment: Optional[datetime]
@@ -381,6 +383,7 @@ class LegacyManager(BaseModel):
     raw_manager_name: Optional[str] = None
     raw_reporting_to: Optional[str] = None
     score_distribution: Optional[Dict[str, Any]] = None
+    assessment_summaries: Optional[List[Dict[str, Any]]] = None
     total_assessments: int = 0
     created_at: datetime = Field(default_factory=datetime.utcnow)
     company_id: str = "legacy_company"  # Added for compatibility

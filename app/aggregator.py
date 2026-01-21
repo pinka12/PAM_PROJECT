@@ -27,9 +27,10 @@ def update_manager_aggregation(manager_name: str):
         # Collect scores
         category_totals = {"trusting": 0, "tasking": 0, "tending": 0}
         category_scores_list = {"trusting": [], "tasking": [], "tending": []}
+        assessment_summaries = []
         all_timestamps = []
         
-        for assessment in all_assessments:
+        for index, assessment in enumerate(all_assessments, start=1):
             processed = assessment.get("processed", {})
             categories = processed.get("category_totals", {})
             timestamp = assessment.get("submittedAt") or assessment.get("created_at")
@@ -42,6 +43,17 @@ def update_manager_aggregation(manager_name: str):
                 score = categories.get(category, 0)
                 category_totals[category] += score
                 category_scores_list[category].append(score)
+
+            assessment_summaries.append({
+                "sequence": index,
+                "submitted_at": timestamp,
+                "category_totals": {
+                    "trusting": categories.get("trusting", 0),
+                    "tasking": categories.get("tasking", 0),
+                    "tending": categories.get("tending", 0)
+                },
+                "overall_score": processed.get("overall_score", 0)
+            })
         
         # Get manager info from latest assessment
         latest_assessment = all_assessments[-1]
@@ -49,13 +61,15 @@ def update_manager_aggregation(manager_name: str):
         manager_info = processed.get("manager_info", {})
         
         # Calculate statistics
+        total_assessments = len(all_assessments)
+
         aggregated = {
             "manager_name": manager_name,
             "reporting_to": manager_info.get("reporting_to", ""),
             "raw_manager_name": manager_info.get("raw_manager_name", ""),
             "raw_reporting_to": manager_info.get("raw_reporting_to", ""),
             
-            "total_assessments": len(all_assessments),
+            "total_assessments": total_assessments,
             "first_assessment": min(all_timestamps) if all_timestamps else "",
             "last_assessment": max(all_timestamps) if all_timestamps else "",
             
@@ -63,10 +77,11 @@ def update_manager_aggregation(manager_name: str):
             "category_totals": category_totals,
             
             "category_averages": {
-                "trusting": statistics.mean(category_scores_list["trusting"]) if category_scores_list["trusting"] else 0,
-                "tasking": statistics.mean(category_scores_list["tasking"]) if category_scores_list["tasking"] else 0,
-                "tending": statistics.mean(category_scores_list["tending"]) if category_scores_list["tending"] else 0
+                "trusting": round(category_totals["trusting"] / total_assessments, 2) if total_assessments else 0,
+                "tasking": round(category_totals["tasking"] / total_assessments, 2) if total_assessments else 0,
+                "tending": round(category_totals["tending"] / total_assessments, 2) if total_assessments else 0
             },
+            "assessment_summaries": assessment_summaries,
             
             # Score distribution
             "score_distribution": {
