@@ -421,7 +421,7 @@
                         <i class="fas fa-shield-alt me-2"></i>
                         Your identity is protected and responses are confidential
                     </div>
-                    <button class="btn btn-primary btn-lg" onclick="window.location.href='/'">
+                    <button class="btn btn-primary btn-lg" onclick="finishAndClosePage()">
                         <i class="fas fa-home me-2"></i>Done
                     </button>
                 </div>
@@ -680,7 +680,7 @@
                     setTimeout(() => {
                         if (modal._isShown) {
                             modal.hide();
-                            window.location.href = '/';
+                            finishAndClosePage();
                         }
                     }, 8000);
                     
@@ -764,6 +764,28 @@
             }
         `;
         document.head.appendChild(style);
+
+        function finishAndClosePage() {
+            try {
+                if (window.opener && !window.opener.closed) {
+                    window.close();
+                    return;
+                }
+                window.close();
+                // If browser blocks close for non-script-opened tab, go neutral.
+                setTimeout(() => {
+                    if (!document.hidden) {
+                        if (window.history.length > 1) {
+                            window.history.back();
+                        } else {
+                            window.location.replace('about:blank');
+                        }
+                    }
+                }, 150);
+            } catch (e) {
+                window.location.replace('about:blank');
+            }
+        }
     </script>
 </body>
 </html>

@@ -3,392 +3,444 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manager Report</title>
+    <title>Manager Leadership Report</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap');
-
-        :root {
-            --ink: #111827;
-            --muted: #6b7280;
-            --primary: #1d4ed8;
-            --primary-dark: #1e40af;
-            --accent: #f59e0b;
-            --surface: #ffffff;
-            --bg: linear-gradient(135deg, #0f3b8f 0%, #1d4ed8 55%, #f59e0b 100%);
-            --shadow: 0 10px 30px rgba(31, 41, 55, 0.08);
-        }
-
         body {
-            font-family: 'Open Sans', sans-serif;
-            background: var(--bg);
-            color: var(--ink);
+            background: #eef2f8;
+            color: #0f172a;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
         }
-
-        .layout {
-            display: flex;
-            min-height: 100vh;
-            padding: 20px;
-            gap: 20px;
+        .page {
+            max-width: 1200px;
+            margin: 24px auto 40px;
+            padding: 0 16px;
         }
-
-        .sidenav {
-            width: 260px;
-            background: var(--surface);
-            border-radius: 20px;
-            padding: 24px;
-            box-shadow: var(--shadow);
-            position: sticky;
-            top: 20px;
-            height: fit-content;
-        }
-
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: 700;
-            font-size: 20px;
-            margin-bottom: 24px;
-        }
-
-
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 12px 14px;
-            border-radius: 12px;
-            color: var(--muted);
-            text-decoration: none;
-            font-weight: 600;
-        }
-
-        .nav-item.active,
-        .nav-item:hover {
-            background: #e8f1ff;
-            color: var(--primary);
-        }
-
-        .main-content {
-            flex: 1;
-            background: rgba(248, 250, 252, 0.9);
-            border-radius: 22px;
-            padding: 24px;
-        }
-
         .topbar {
+            background: #ffffff;
+            border: 1px solid #dbe4f2;
+            border-radius: 16px;
+            padding: 16px 18px;
+            margin-bottom: 18px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap;
             gap: 12px;
-            margin-bottom: 24px;
+            flex-wrap: wrap;
         }
-
-        .page-header {
-            background: var(--bg);
-            border-radius: 18px;
-            padding: 16px 18px;
-            color: #fff;
-            box-shadow: 0 12px 24px rgba(15, 59, 143, 0.2);
-        }
-
-        .page-header h2 {
-            font-size: 34px;
+        .title h1 {
+            font-size: 28px;
             font-weight: 800;
-            color: #fff;
+            margin: 0;
+            color: #0b1f49;
         }
-
-        .page-header .text-muted {
-            color: rgba(255, 255, 255, 0.8) !important;
+        .title p {
+            margin: 4px 0 0;
+            color: #475569;
+            font-weight: 600;
         }
-
-        .page-header .btn-outline-secondary {
-            color: #fff;
-            border-color: rgba(255, 255, 255, 0.7);
-        }
-
-        .page-header .btn-outline-secondary:hover {
-            background: rgba(255, 255, 255, 0.2);
-            color: #fff;
-        }
-
-        .card-shadow {
-            background: var(--surface);
-            border-radius: 18px;
-            box-shadow: var(--shadow);
-            border: 1px solid #eef2f7;
-        }
-
-        .score-chart {
-            position: relative;
-            width: 220px;
-            height: 190px;
-            overflow: visible;
-        }
-
-        .score-base svg {
-            width: 100%;
-            height: 100%;
-        }
-
-        .score-popup {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) scale(0.85);
-            opacity: 0;
-            pointer-events: none;
+        .report-card {
             background: #ffffff;
+            border: 1px solid #dbe4f2;
             border-radius: 16px;
-            padding: 12px;
-            box-shadow: 0 20px 45px rgba(15, 23, 42, 0.18);
-            border: 1px solid #e2e8f0;
-            transition: opacity 0.2s ease, transform 0.2s ease;
-            z-index: 5;
+            margin-bottom: 16px;
         }
-
-        .score-popup svg {
-            width: 300px;
-            height: 260px;
-            display: block;
-        }
-
-        .popup-values {
-            display: flex;
-            justify-content: space-between;
-            gap: 10px;
-            margin-top: 8px;
-            font-size: 12px;
-            font-weight: 600;
-            color: #1f2937;
-        }
-
-        .score-chart:hover .score-popup {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-        }
-
-        .tri-segment {
-            transition: transform 0.2s ease, filter 0.2s ease;
-            transform-box: fill-box;
-            transform-origin: center;
-            cursor: pointer;
-        }
-
-        .tri-segment:hover {
-            transform: scale(1.08);
-            filter: drop-shadow(0 6px 12px rgba(15, 23, 42, 0.18));
-        }
-
-        .tri-text {
-            font-size: 11px;
+        .report-head {
+            background: #1d4ed8;
+            color: #fff;
             font-weight: 700;
-            fill: #0f172a;
-            pointer-events: none;
+            font-size: 16px;
+            padding: 10px 14px;
+            border-top-left-radius: 16px;
+            border-top-right-radius: 16px;
         }
-
-        .tri-label {
-            font-size: 9px;
-            font-weight: 600;
-            letter-spacing: 0.4px;
+        .report-body {
+            padding: 16px;
+        }
+        .metric {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px;
+            background: #f8fafc;
+        }
+        .metric .label {
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 700;
             text-transform: uppercase;
-            fill: #475569;
-            pointer-events: none;
         }
-
-        pre { white-space: pre-wrap; }
-
-        @media (max-width: 992px) {
-            .layout { flex-direction: column; }
-            .sidenav { width: 100%; position: static; }
+        .metric .value {
+            font-size: 26px;
+            font-weight: 800;
+            color: #0f172a;
         }
+        .score-chart {
+            width: 100%;
+            max-width: 340px;
+            margin: 0 auto;
+        }
+        .subcategory-chart-wrap {
+            height: 340px;
+        }
+        .content-box {
+            background: #f8fafc;
+            border-left: 4px solid #2563eb;
+            border-radius: 10px;
+            padding: 12px;
+            line-height: 1.7;
+            color: #1e293b;
+            white-space: pre-line;
+        }
+        .pill-list {
+            margin: 0;
+            padding-left: 18px;
+        }
+        .pill-list li {
+            margin-bottom: 8px;
+        }
+        .risk { color: #b91c1c; font-weight: 600; }
+        .strength { color: #166534; font-weight: 600; }
+        .dev { color: #92400e; font-weight: 600; }
+        .sub-table th {
+            background: #e2e8f0;
+            color: #0f172a;
+            font-size: 13px;
+        }
+        .sub-table td, .sub-table th {
+            vertical-align: top;
+            font-size: 13px;
+        }
+        .row-red { background: #fee2e2; }
+        .row-amber { background: #fef3c7; }
+        .row-green { background: #dcfce7; }
     </style>
 </head>
 <body>
-    <div class="layout">
-        <aside class="sidenav">
-            <div class="brand">MAP Dashboard</div>
-            <a class="nav-item active" href="/dashboard">Dashboard</a>
-            <a class="nav-item" href="/company/new">Add Company</a>
-            <a class="nav-item" href="/logout">Logout</a>
-        </aside>
+    <div class="page">
+        <div class="topbar">
+            <div class="title">
+                <h1>{{ manager_name }}</h1>
+                <p>{{ company.name }}</p>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <a class="btn btn-outline-secondary" href="/company/{{ company.id }}">Back</a>
+                <button class="btn btn-warning" id="regenerateBtn" onclick="regenerateReport()">Regenerate</button>
+                <a class="btn btn-success" id="downloadBtn" href="#">Download PDF</a>
+            </div>
+        </div>
 
-        <main class="main-content">
-            <div class="topbar page-header">
-                <div>
-                    <h2 class="mb-0">{{ manager_name }}</h2>
-                    <div class="text-muted">{{ company.name }}</div>
-                </div>
-                <div class="d-flex align-items-center flex-wrap gap-2">
-                    <a class="btn btn-outline-secondary" href="/company/{{ company.id }}">Back</a>
-                    <a class="btn btn-success" id="downloadBtn" href="#">Download PDF</a>
+        <section class="report-card">
+            <div class="report-head">Executive Summary</div>
+            <div class="report-body"><div id="summaryText" class="content-box">Loading summary...</div></div>
+        </section>
+
+        <section class="report-card">
+            <div class="report-head">Manager Snapshot</div>
+            <div class="report-body">
+                <div class="row g-3">
+                    <div class="col-md-3"><div class="metric"><div class="label">Assessments</div><div id="totalAssessments" class="value">0</div></div></div>
+                    <div class="col-md-3"><div class="metric"><div class="label">Trusting</div><div id="trustingScore" class="value">0</div></div></div>
+                    <div class="col-md-3"><div class="metric"><div class="label">Tasking</div><div id="taskingScore" class="value">0</div></div></div>
+                    <div class="col-md-3"><div class="metric"><div class="label">Tending</div><div id="tendingScore" class="value">0</div></div></div>
                 </div>
             </div>
+        </section>
 
-            <div class="row g-3 mb-4">
-                <div class="col-md-3">
-                    <div class="card card-shadow p-3">
-                        <div class="text-muted">Assessments</div>
-                        <div class="fs-2 fw-bold" id="totalAssessments">0</div>
+        <section class="report-card">
+            <div class="report-head">Leadership Charts</div>
+            <div class="report-body">
+                <div class="row g-3">
+                    <div class="col-lg-4">
+                        <h6>Category Triangle</h6>
+                        <div id="managerScoreChart" class="score-chart"></div>
                     </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card card-shadow p-3">
-                        <div class="text-muted">Trusting</div>
-                        <div class="fs-2 fw-bold" id="trustingScore">0</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card card-shadow p-3">
-                        <div class="text-muted">Tasking</div>
-                        <div class="fs-2 fw-bold" id="taskingScore">0</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card card-shadow p-3">
-                        <div class="text-muted">Tending</div>
-                        <div class="fs-2 fw-bold" id="tendingScore">0</div>
+                    <div class="col-lg-8">
+                        <h6>Subcategory Average Scores (0-9)</h6>
+                        <div class="subcategory-chart-wrap">
+                            <canvas id="subcategoryBarChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
+        </section>
 
-            <div class="card card-shadow mb-4">
-                <div class="card-body d-flex flex-column flex-md-row align-items-center justify-content-between gap-3">
-                    <div>
-                        <h5 class="mb-1">Manager Score Split</h5>
-                        <div class="text-muted small">Trusting, tasking, and tending distribution.</div>
-                    </div>
-                    <div id="managerScoreChart" class="score-chart"></div>
+        <section class="report-card">
+            <div class="report-head">Detailed Explanation</div>
+            <div class="report-body"><div id="behaviorText" class="content-box">Loading...</div></div>
+        </section>
+
+        <section class="report-card">
+            <div class="report-head">Strengths, Development Areas, Risks</div>
+            <div class="report-body">
+                <div class="row g-3">
+                    <div class="col-md-4"><h6 class="strength">Strengths</h6><ul id="strengthsList" class="pill-list"></ul></div>
+                    <div class="col-md-4"><h6 class="dev">Development Areas</h6><ul id="developmentList" class="pill-list"></ul></div>
+                    <div class="col-md-4"><h6 class="risk">Risks</h6><ul id="risksList" class="pill-list"></ul></div>
                 </div>
             </div>
+        </section>
 
-            <div class="card card-shadow">
-                <div class="card-body">
-                    <h5 class="mb-3">AI Report</h5>
-                    <pre id="reportText" class="text-muted">Loading...</pre>
+        <section class="report-card">
+            <div class="report-head">Subcategory Behavioral Descriptions</div>
+            <div class="report-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered sub-table mb-0">
+                        <thead>
+                            <tr><th>Subcategory</th><th>Score</th><th>Band</th><th>Description</th></tr>
+                        </thead>
+                        <tbody id="subcategoryRows"></tbody>
+                    </table>
                 </div>
             </div>
-        </main>
+        </section>
+
+        <section class="report-card">
+            <div class="report-head">Coaching Plan & 30-60-90 Action Plan</div>
+            <div class="report-body">
+                <h6>Coaching Plan</h6>
+                <div id="coachingText" class="content-box">-</div>
+                <h6 class="mt-3">30-60-90 Day Plan</h6>
+                <div id="actionText" class="content-box">-</div>
+            </div>
+        </section>
     </div>
 
     <script>
         const companyId = "{{ company.id }}";
         const managerName = "{{ manager_name }}";
         const managerUrl = encodeURIComponent(managerName);
+        let subcategoryChart = null;
+        let cachedSubcategoryScores = {};
+        let cachedSubcategoryRemarks = {};
+
+        const subcategoryOrder = [
+            'Honesty, Dependability & Fairness',
+            'Task Delegation Without Bias',
+            'Providing Necessary Support',
+            'Encouraging Open Communication',
+            'Defining Roles & Responsibilities',
+            'Planning & Organizing',
+            'Prioritising Tasks',
+            'Monitoring Progress & Providing Assistance',
+            'Helping Team Members Learn & Improve',
+            'Creating a Collaborative Environment',
+            'Resolving Conflicts & Fostering Camaraderie',
+            'Recognising & Rewarding Achievement'
+        ];
 
         document.addEventListener('DOMContentLoaded', async () => {
+            document.getElementById('downloadBtn').href = `/api/companies/${companyId}/manager/${managerUrl}/report.pdf`;
             await loadManager();
-            await loadReport();
-            document.getElementById('downloadBtn').href =
-                `/api/companies/${companyId}/manager/${managerUrl}/report.pdf`;
+            await loadReport(false);
         });
 
-        async function loadManager() {
-            const response = await fetch(`/api/companies/${companyId}/manager/${managerUrl}`);
-            const data = await response.json();
-            if (!data.success) return;
-            const manager = data.manager;
-            const scores = manager.category_averages || {};
-            document.getElementById('totalAssessments').textContent = manager.total_assessments || 0;
-            document.getElementById('trustingScore').textContent = scores.trusting || 0;
-            document.getElementById('taskingScore').textContent = scores.tasking || 0;
-            document.getElementById('tendingScore').textContent = scores.tending || 0;
-            renderScoreChart(scores);
+        async function apiFetch(url, options) {
+            const response = await fetch(url, options);
+            if (response.status === 401 || response.status === 403) {
+                window.location.href = '/login';
+                throw new Error('Session expired');
+            }
+            return response;
         }
 
-        async function loadReport() {
-            const response = await fetch(`/api/companies/${companyId}/manager/${managerUrl}/report`);
+        async function loadManager() {
+            const response = await apiFetch(`/api/companies/${companyId}/manager/${managerUrl}`, { credentials: 'same-origin' });
+            if (!response.ok) throw new Error(`Manager fetch failed (${response.status})`);
             const data = await response.json();
             if (!data.success) return;
-            document.getElementById('reportText').textContent = data.report.report_text || 'No report available.';
+            const manager = data.manager || {};
+            const scores = manager.category_averages || {};
+            cachedSubcategoryScores = manager.subcategory_averages || {};
+            cachedSubcategoryRemarks = manager.subcategory_remarks || {};
+            document.getElementById('totalAssessments').textContent = manager.total_assessments || 0;
+            document.getElementById('trustingScore').textContent = `${toPercent(scores.trusting)}%`;
+            document.getElementById('taskingScore').textContent = `${toPercent(scores.tasking)}%`;
+            document.getElementById('tendingScore').textContent = `${toPercent(scores.tending)}%`;
+            renderScoreChart(scores);
+            renderSubcategoryChart(cachedSubcategoryScores);
+            renderSubcategoryTable(cachedSubcategoryScores, cachedSubcategoryRemarks);
+        }
+
+        async function loadReport(force) {
+            const response = await apiFetch(`/api/companies/${companyId}/manager/${managerUrl}/report?force=${force ? 'true' : 'false'}`, { credentials: 'same-origin' });
+            if (!response.ok) throw new Error(`Report fetch failed (${response.status})`);
+            const data = await response.json();
+            if (!data.success) return;
+
+            const report = data.report || {};
+            const j = getReportJson(report);
+            setNarrative('summaryText', j.executive_summary || report.summary_text || 'Summary not available.');
+            setNarrative('behaviorText', j.behavioral_interpretation || 'Behavioral interpretation not available.');
+            setList('strengthsList', j.strengths || []);
+            setList('developmentList', j.development_areas || []);
+            setList('risksList', j.risks || []);
+            setNarrative('coachingText', j.coaching_plan || '-');
+            setNarrative('actionText', j.action_plan_30_60_90 || '-');
+        }
+
+        async function regenerateReport() {
+            const btn = document.getElementById('regenerateBtn');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Regenerating...';
+            try {
+                await loadReport(true);
+                document.getElementById('downloadBtn').href = `/api/companies/${companyId}/manager/${managerUrl}/report.pdf?force=true`;
+            } catch (error) {
+                alert('Failed to regenerate AI report.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        }
+
+        function setText(id, text) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = text || '-';
+        }
+
+        function setNarrative(id, text) {
+            setText(id, formatNarrative(text));
+        }
+
+        function formatNarrative(value) {
+            const clean = String(value || '').replace(/\s+/g, ' ').trim();
+            if (!clean) return '-';
+            if (clean.length <= 260) return clean;
+            const sentences = clean.split(/(?<=[.!?])\s+/).filter(Boolean);
+            if (sentences.length <= 2) return clean;
+            return sentences.slice(0, 10).map((s, idx) => `${idx + 1}. ${s}`).join('\n');
+        }
+
+        function toPercent(value) {
+            const n = Number(value || 0);
+            if (n > 10) {
+                return Math.max(0, Math.min(100, Math.round((n / 36) * 100)));
+            }
+            return Math.max(0, Math.min(100, Math.round(n * 10)));
+        }
+
+        function setList(id, items) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const values = Array.isArray(items) ? items.filter(x => String(x || '').trim()) : [];
+            if (!values.length) {
+                el.innerHTML = '<li>-</li>';
+                return;
+            }
+            el.innerHTML = values.map(v => `<li>${escapeHtml(String(v))}</li>`).join('');
+        }
+
+        function getReportJson(report) {
+            if (report && report.report_json && typeof report.report_json === 'object') {
+                return report.report_json;
+            }
+            const raw = String((report || {}).report_text || '').trim();
+            if (!raw) return {};
+            try {
+                const parsed = JSON.parse(raw);
+                return parsed && typeof parsed === 'object' ? parsed : {};
+            } catch (_) {
+                return {};
+            }
+        }
+
+        function renderSubcategoryTable(subcategoryScores, subcategoryRemarks) {
+            const tbody = document.getElementById('subcategoryRows');
+            if (!tbody) return;
+            const rows = [];
+            for (const behavior of subcategoryOrder) {
+                const score = Number(subcategoryScores[behavior] || 0);
+                const info = getBehaviorInfo(behavior, subcategoryRemarks);
+                const band = info.band || scoreBand(score);
+                const bandLabel = band === 'green' ? 'Above Average' : band === 'amber' ? 'Average' : 'Below Average';
+                const rowClass = band === 'green' ? 'row-green' : (band === 'amber' ? 'row-amber' : 'row-red');
+                rows.push(`<tr class="${rowClass}"><td>${escapeHtml(behavior)}</td><td>${score.toFixed(2)}/9</td><td>${bandLabel}</td><td>${escapeHtml(info.remark || '-')}</td></tr>`);
+            }
+            tbody.innerHTML = rows.join('');
+        }
+
+        function getBehaviorInfo(behavior, remarks) {
+            const blocks = ['trusting', 'tasking', 'tending'];
+            for (const block of blocks) {
+                const payload = (((remarks || {})[block] || {})[behavior] || null);
+                if (payload) {
+                    return {
+                        band: String(payload.band || ''),
+                        remark: String(payload.remark || '')
+                    };
+                }
+            }
+            return { band: '', remark: '' };
+        }
+
+        function scoreBand(value) {
+            if (value >= 8) return 'green';
+            if (value >= 6) return 'amber';
+            return 'red';
+        }
+
+        function renderSubcategoryChart(subcategoryScores) {
+            const canvas = document.getElementById('subcategoryBarChart');
+            if (!canvas) return;
+            const labels = [];
+            const values = [];
+            for (const label of subcategoryOrder) {
+                if (Object.prototype.hasOwnProperty.call(subcategoryScores, label)) {
+                    labels.push(label);
+                    values.push(Number(subcategoryScores[label] || 0));
+                }
+            }
+            const bg = values.map(v => v >= 8 ? 'rgba(22,163,74,0.78)' : (v >= 6 ? 'rgba(245,158,11,0.78)' : 'rgba(220,38,38,0.78)'));
+            const border = values.map(v => v >= 8 ? 'rgb(22,163,74)' : (v >= 6 ? 'rgb(245,158,11)' : 'rgb(220,38,38)'));
+            if (subcategoryChart) subcategoryChart.destroy();
+            subcategoryChart = new Chart(canvas, {
+                type: 'bar',
+                data: { labels, datasets: [{ data: values, backgroundColor: bg, borderColor: border, borderWidth: 1.2, borderRadius: 6 }] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { maxRotation: 50, minRotation: 30, autoSkip: false, font: { size: 11 } } },
+                        y: { beginAtZero: true, max: 10, ticks: { stepSize: 1 } }
+                    }
+                }
+            });
         }
 
         function renderScoreChart(scores) {
             const el = document.getElementById('managerScoreChart');
             if (!el) return;
-            const trusting = clampScore(scores.trusting);
-            const tasking = clampScore(scores.tasking);
-            const tending = clampScore(scores.tending);
-            el.innerHTML = triangleChartMarkup(trusting, tasking, tending, 220, 190, 300, 260);
-        }
-
-        function triangleChartMarkup(trusting, tasking, tending, width, height, popupWidth, popupHeight) {
-            const baseSvg = triangleChartSvg(trusting, tasking, tending, width, height, 16);
-            const popupSvg = triangleChartSvg(trusting, tasking, tending, popupWidth, popupHeight, 22);
-            return `
-                <div class="score-base">${baseSvg}</div>
-                <div class="score-popup">
-                    ${popupSvg}
-                    <div class="popup-values">
-                        <span>Trusting ${trusting}</span>
-                        <span>Tasking ${tasking}</span>
-                        <span>Tending ${tending}</span>
-                    </div>
-                </div>
-            `;
-        }
-
-        function triangleChartSvg(trusting, tasking, tending, width, height, pad) {
-            const top = { x: width / 2, y: pad };
-            const left = { x: pad, y: height - pad };
-            const right = { x: width - pad, y: height - pad };
-            const center = {
-                x: (top.x + left.x + right.x) / 3,
-                y: (top.y + left.y + right.y) / 3
-            };
-            const trustCenter = centroid(top, left, center);
-            const taskCenter = centroid(top, right, center);
-            const tendCenter = centroid(left, right, center);
-            return `
-                <svg viewBox="0 0 ${width} ${height}" aria-label="Scores triangle chart">
-                    <polygon points="${top.x},${top.y} ${left.x},${left.y} ${right.x},${right.y}"
-                        fill="none" stroke="#cbd5f5" stroke-width="2" />
-                    <polygon class="tri-segment" points="${top.x},${top.y} ${left.x},${left.y} ${center.x},${center.y}"
-                        fill="rgba(16,185,129,0.75)">
-                        <title>Trusting: ${trusting}</title>
-                    </polygon>
-                    <polygon class="tri-segment" points="${top.x},${top.y} ${center.x},${center.y} ${right.x},${right.y}"
-                        fill="rgba(59,130,246,0.75)">
-                        <title>Tasking: ${tasking}</title>
-                    </polygon>
-                    <polygon class="tri-segment" points="${left.x},${left.y} ${center.x},${center.y} ${right.x},${right.y}"
-                        fill="rgba(245,158,11,0.8)">
-                        <title>Tending: ${tending}</title>
-                    </polygon>
-                    <text class="tri-text" x="${trustCenter.x}" y="${trustCenter.y}" text-anchor="middle" dominant-baseline="middle">
-                        ${trusting}
-                    </text>
-                    <text class="tri-label" x="${trustCenter.x}" y="${trustCenter.y + 12}" text-anchor="middle" dominant-baseline="middle">
-                        Trusting
-                    </text>
-                    <text class="tri-text" x="${taskCenter.x}" y="${taskCenter.y}" text-anchor="middle" dominant-baseline="middle">
-                        ${tasking}
-                    </text>
-                    <text class="tri-label" x="${taskCenter.x}" y="${taskCenter.y + 12}" text-anchor="middle" dominant-baseline="middle">
-                        Tasking
-                    </text>
-                    <text class="tri-text" x="${tendCenter.x}" y="${tendCenter.y}" text-anchor="middle" dominant-baseline="middle">
-                        ${tending}
-                    </text>
-                    <text class="tri-label" x="${tendCenter.x}" y="${tendCenter.y + 12}" text-anchor="middle" dominant-baseline="middle">
-                        Tending
-                    </text>
+            const t = toPercent(scores.trusting || 0);
+            const k = toPercent(scores.tasking || 0);
+            const e = toPercent(scores.tending || 0);
+            el.innerHTML = `
+                <svg viewBox="0 0 360 280" width="100%" height="260" aria-label="scores triangle">
+                    <polygon points="180,18 32,246 328,246" fill="none" stroke="#a5b4fc" stroke-width="2"></polygon>
+                    <polygon points="180,18 32,246 180,170" fill="rgba(16,185,129,0.78)"></polygon>
+                    <polygon points="180,18 180,170 328,246" fill="rgba(59,130,246,0.78)"></polygon>
+                    <polygon points="32,246 180,170 328,246" fill="rgba(245,158,11,0.82)"></polygon>
+                    <text x="130" y="145" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">${t}%</text>
+                    <text x="230" y="145" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">${k}%</text>
+                    <text x="180" y="226" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">${e}%</text>
+                    <text x="130" y="166" text-anchor="middle" font-size="11" font-weight="700" fill="#0f172a">TRUSTING</text>
+                    <text x="230" y="166" text-anchor="middle" font-size="11" font-weight="700" fill="#0f172a">TASKING</text>
+                    <text x="180" y="246" text-anchor="middle" font-size="11" font-weight="700" fill="#0f172a">TENDING</text>
                 </svg>
             `;
         }
 
-        function centroid(a, b, c) {
-            return {
-                x: (a.x + b.x + c.x) / 3,
-                y: (a.y + b.y + c.y) / 3
-            };
-        }
-
-        function clampScore(value) {
-            const safe = Number(value || 0);
-            return Math.max(0, Math.min(10, safe));
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         }
     </script>
 </body>

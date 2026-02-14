@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MAP Company Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap');
 
@@ -52,6 +53,15 @@
             margin-bottom: 24px;
         }
 
+        .brand img {
+            width: 34px;
+            height: 34px;
+            object-fit: contain;
+        }
+
+        .nav-item i {
+            font-size: 16px;
+        }
 
         .nav-item {
             display: flex;
@@ -119,7 +129,7 @@
         }
 
         .page-title {
-            font-size: 42px;
+            font-size: 36px;
             font-weight: 800;
             color: var(--primary);
         }
@@ -140,14 +150,14 @@
 
         .stat-label {
             text-transform: uppercase;
-            font-size: 14px;
+            font-size: 12px;
             letter-spacing: 1px;
             color: var(--muted);
             font-weight: 700;
         }
 
         .stat-value {
-            font-size: 44px;
+            font-size: 34px;
             font-weight: 800;
             margin-top: 6px;
         }
@@ -158,14 +168,22 @@
             padding: 14px 18px;
             box-shadow: var(--shadow);
             border: 1px solid #eef2f7;
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         .search-input {
             border: none;
-            font-size: 17px;
+            font-size: 14px;
             width: 100%;
             outline: none;
             color: var(--ink);
+        }
+
+        .search-icon {
+            color: var(--muted);
+            font-size: 16px;
         }
 
         .card-soft {
@@ -174,6 +192,54 @@
             box-shadow: var(--shadow);
             border: 1px solid #eef2f7;
             overflow: hidden;
+        }
+
+        .table-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 18px;
+            border-bottom: 1px solid #eef2f7;
+            background: #f9fbff;
+        }
+
+        .table-toolbar .toolbar-left {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--muted);
+        }
+
+        .table-toolbar .toolbar-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .page-select {
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 6px 10px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--ink);
+            background: #fff;
+        }
+
+        .pager-btn {
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            color: var(--ink);
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .pager-btn:disabled {
+            opacity: 0.5;
         }
 
         .company-table thead {
@@ -213,8 +279,8 @@
         }
 
         .company-table tbody td {
-            padding: 20px 16px;
-            font-size: 19px;
+            padding: 18px 14px;
+            font-size: 15px;
             font-weight: 600;
             overflow: visible;
         }
@@ -234,7 +300,7 @@
 
         .company-name {
             color: #2563eb;
-            font-size: 20px;
+            font-size: 16px;
             font-weight: 700;
         }
 
@@ -247,8 +313,8 @@
 
         .score-chart {
             position: relative;
-            width: 190px;
-            height: 170px;
+            width: 170px;
+            height: 150px;
             overflow: visible;
         }
 
@@ -360,6 +426,12 @@
             margin-bottom: 6px;
         }
 
+        .icon-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
         @media (max-width: 992px) {
             .layout { flex-direction: column; }
             .sidenav { width: 100%; position: static; }
@@ -369,9 +441,12 @@
 <body>
     <div class="layout">
         <aside class="sidenav">
-            <div class="brand">MAP Dashboard</div>
-            <a class="nav-item active" href="/dashboard">Dashboard</a>
-            <a class="nav-item" href="/company/new">Add Company</a>
+            <div class="brand">
+                <img src="/static/map-logo.png" alt="MAP logo">
+                MAP Dashboard
+            </div>
+            <a class="nav-item active" href="/dashboard"><i class="bi bi-grid-1x2"></i>Dashboard</a>
+            <a class="nav-item" href="/company/new"><i class="bi bi-plus-circle"></i>Add Company</a>
             <div class="sidenav-footer mt-4">
                 Manage assessments, reports, and company analytics in one place.
             </div>
@@ -384,15 +459,16 @@
                     <div class="page-subtitle">Unified view of assessment activity across all organizations.</div>
                 </div>
                 <div class="d-flex align-items-center">
-                    <a class="btn btn-outline-primary btn-sm" href="/logout">Logout</a>
+                    <a class="btn btn-outline-primary btn-sm icon-btn" href="/logout"><i class="bi bi-box-arrow-right"></i>Logout</a>
                 </div>
             </div>
 
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
                 <div class="search-card flex-grow-1">
+                    <i class="bi bi-search search-icon"></i>
                     <input class="search-input" type="text" id="companySearchInput" placeholder="Search company by name (typos allowed)...">
                 </div>
-                <a class="btn btn-primary btn-lg" href="/company/new">Add Company</a>
+                <a class="btn btn-primary btn-lg icon-btn" href="/company/new"><i class="bi bi-plus-lg"></i>Add Company</a>
             </div>
 
             <div class="row g-3 mb-4">
@@ -417,6 +493,25 @@
             </div>
 
             <div class="card-soft company-table">
+                <div class="table-toolbar">
+                    <div class="toolbar-left" id="recordCount">0 records</div>
+                    <div class="toolbar-right">
+                        <span>Rows per page</span>
+                        <select id="rowsPerPage" class="page-select">
+                            <option value="5">5</option>
+                            <option value="10" selected>10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                        </select>
+                        <button class="pager-btn" id="prevPage" type="button">
+                            <i class="bi bi-chevron-left"></i>
+                        </button>
+                        <span id="pageInfo">1 / 1</span>
+                        <button class="pager-btn" id="nextPage" type="button">
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
                 <div class="table-responsive">
                     <table class="table table-borderless align-middle mb-0">
                         <thead>
@@ -534,8 +629,17 @@
             document.getElementById('companySearchInput').addEventListener('input', onSearch);
         });
 
+        async function apiFetch(url, options) {
+            const response = await fetch(url, options);
+            if (response.status === 401 || response.status === 403) {
+                window.location.href = '/login';
+                throw new Error('Session expired');
+            }
+            return response;
+        }
+
         async function loadDashboard() {
-            const response = await fetch('/api/dashboard/stats');
+            const response = await apiFetch('/api/dashboard/stats');
             const data = await response.json();
             if (!data.success) {
                 return;
@@ -599,10 +703,10 @@
                     return;
                 }
                 const scores = company.avg_scores || {trusting: 0, tasking: 0, tending: 0};
-                const trusting = clampScore(scores.trusting);
-                const tasking = clampScore(scores.tasking);
-                const tending = clampScore(scores.tending);
-                el.innerHTML = triangleChartMarkup(trusting, tasking, tending, 190, 170, 260, 230);
+                const trustingPct = scoreToPercent(scores.trusting);
+                const taskingPct = scoreToPercent(scores.tasking);
+                const tendingPct = scoreToPercent(scores.tending);
+                el.innerHTML = triangleChartMarkup(trustingPct, taskingPct, tendingPct, 190, 170, 260, 230);
             });
         }
 
@@ -614,9 +718,9 @@
                 <div class="score-popup">
                     ${popupSvg}
                     <div class="popup-values">
-                        <span>Trusting ${trusting}</span>
-                        <span>Tasking ${tasking}</span>
-                        <span>Tending ${tending}</span>
+                        <span>Trusting ${trusting}%</span>
+                        <span>Tasking ${tasking}%</span>
+                        <span>Tending ${tending}%</span>
                     </div>
                 </div>
             `;
@@ -639,15 +743,15 @@
                         fill="none" stroke="#cbd5f5" stroke-width="2" />
                     <polygon class="tri-segment" points="${top.x},${top.y} ${left.x},${left.y} ${center.x},${center.y}"
                         fill="rgba(16,185,129,0.75)">
-                        <title>Trusting: ${trusting}</title>
+                        <title>Trusting: ${trusting}%</title>
                     </polygon>
                     <polygon class="tri-segment" points="${top.x},${top.y} ${center.x},${center.y} ${right.x},${right.y}"
                         fill="rgba(59,130,246,0.75)">
-                        <title>Tasking: ${tasking}</title>
+                        <title>Tasking: ${tasking}%</title>
                     </polygon>
                     <polygon class="tri-segment" points="${left.x},${left.y} ${center.x},${center.y} ${right.x},${right.y}"
                         fill="rgba(245,158,11,0.8)">
-                        <title>Tending: ${tending}</title>
+                        <title>Tending: ${tending}%</title>
                     </polygon>
                     <text class="tri-text" x="${trustCenter.x}" y="${trustCenter.y}" text-anchor="middle" dominant-baseline="middle">
                         ${trusting}
@@ -680,7 +784,15 @@
 
         function clampScore(value) {
             const safe = Number(value || 0);
-            return Math.max(0, Math.min(10, safe));
+            return Math.max(0, safe);
+        }
+
+        function scoreToPercent(value) {
+            const safe = clampScore(value);
+            if (safe > 10) {
+                return Math.max(0, Math.min(100, Math.round((safe / 36) * 100)));
+            }
+            return Math.max(0, Math.min(100, Math.round(safe * 10)));
         }
 
         function onSearch(e) {
@@ -792,7 +904,7 @@
                 contact_emails: collectList('editContactEmails'),
                 contact_phones: collectList('editContactPhones')
             };
-            await fetch(`/api/companies/${companyId}/update`, {
+            await apiFetch(`/api/companies/${companyId}/update`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(payload)

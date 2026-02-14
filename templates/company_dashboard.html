@@ -406,6 +406,7 @@
             <div class="d-flex align-items-center flex-wrap gap-2">
                 <a class="btn btn-outline-secondary" href="/dashboard">Back</a>
                 <a class="btn btn-primary" href="/form/{{ company.slug }}" target="_blank">Open Assessment Form</a>
+                <a class="btn btn-success" href="/api/companies/{{ company.id }}/report.pdf" target="_blank">Download Owner PDF</a>
             </div>
         </div>
 
@@ -562,8 +563,17 @@
             setInterval(loadManagers, 30000);
         });
 
+        async function apiFetch(url, options) {
+            const response = await fetch(url, options);
+            if (response.status === 401 || response.status === 403) {
+                window.location.href = '/login';
+                throw new Error('Session expired');
+            }
+            return response;
+        }
+
         async function loadOverview() {
-            const response = await fetch(`/api/companies/${companyId}/overview`);
+            const response = await apiFetch(`/api/companies/${companyId}/overview`);
             const data = await response.json();
             if (!data.success) return;
             const trusting = data.averages.trusting || 0;
@@ -576,15 +586,15 @@
             document.getElementById('companyTrusting').textContent = trusting;
             document.getElementById('companyTasking').textContent = tasking;
             document.getElementById('companyTending').textContent = tending;
-            document.getElementById('companyTrustingBar').style.width = `${trusting * 10}%`;
-            document.getElementById('companyTaskingBar').style.width = `${tasking * 10}%`;
-            document.getElementById('companyTendingBar').style.width = `${tending * 10}%`;
+            document.getElementById('companyTrustingBar').style.width = `${scoreToPercent(trusting)}%`;
+            document.getElementById('companyTaskingBar').style.width = `${scoreToPercent(tasking)}%`;
+            document.getElementById('companyTendingBar').style.width = `${scoreToPercent(tending)}%`;
             document.getElementById('companyOverallScore').textContent = overall;
-            document.getElementById('companyOverallBar').style.width = `${overall * 10}%`;
+            document.getElementById('companyOverallBar').style.width = `${scoreToPercent(overall)}%`;
         }
 
         async function loadManagers() {
-            const response = await fetch(`/api/companies/${companyId}/managers`);
+            const response = await apiFetch(`/api/companies/${companyId}/managers`);
             const data = await response.json();
             if (!data.success) return;
             const body = document.getElementById('managersTableBody');
@@ -613,7 +623,7 @@
         }
 
         async function loadHierarchy() {
-            const response = await fetch(`/api/companies/${companyId}/hierarchy`);
+            const response = await apiFetch(`/api/companies/${companyId}/hierarchy`);
             const data = await response.json();
             if (!data.success) return;
             hierarchyCache = data.hierarchy || [];
@@ -621,7 +631,7 @@
         }
 
         async function loadFormLink(force) {
-            const response = await fetch(`/api/companies/${companyId}/form-link?force=${force ? 'true' : 'false'}`);
+            const response = await apiFetch(`/api/companies/${companyId}/form-link?force=${force ? 'true' : 'false'}`);
             const data = await response.json();
             if (!data.success) return;
             document.getElementById('assessmentLink').value = data.url;
@@ -649,7 +659,7 @@
             }
             status.textContent = 'Sending...';
             try {
-                const response = await fetch(`/api/companies/${companyId}/email-report`, {
+                const response = await apiFetch(`/api/companies/${companyId}/email-report`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email })
@@ -832,10 +842,10 @@
                 const el = document.getElementById(chartId);
                 if (!el) return;
                 const scores = manager.category_averages || {trusting: 0, tasking: 0, tending: 0};
-                const trusting = clampScore(scores.trusting);
-                const tasking = clampScore(scores.tasking);
-                const tending = clampScore(scores.tending);
-                el.innerHTML = triangleChartMarkup(trusting, tasking, tending, 190, 170, 260, 230);
+                const trustingPct = scoreToPercent(scores.trusting);
+                const taskingPct = scoreToPercent(scores.tasking);
+                const tendingPct = scoreToPercent(scores.tending);
+                el.innerHTML = triangleChartMarkup(trustingPct, taskingPct, tendingPct, 190, 170, 260, 230);
             });
         }
 
@@ -847,9 +857,9 @@
                 <div class="score-popup">
                     ${popupSvg}
                     <div class="popup-values">
-                        <span>Trusting ${trusting}</span>
-                        <span>Tasking ${tasking}</span>
-                        <span>Tending ${tending}</span>
+                        <span>Trusting ${trusting}%</span>
+                        <span>Tasking ${tasking}%</span>
+                        <span>Tending ${tending}%</span>
                     </div>
                 </div>
             `;
@@ -872,15 +882,15 @@
                         fill="none" stroke="#cbd5f5" stroke-width="2" />
                     <polygon class="tri-segment" points="${top.x},${top.y} ${left.x},${left.y} ${center.x},${center.y}"
                         fill="rgba(16,185,129,0.75)">
-                        <title>Trusting: ${trusting}</title>
+                        <title>Trusting: ${trusting}%</title>
                     </polygon>
                     <polygon class="tri-segment" points="${top.x},${top.y} ${center.x},${center.y} ${right.x},${right.y}"
                         fill="rgba(59,130,246,0.75)">
-                        <title>Tasking: ${tasking}</title>
+                        <title>Tasking: ${tasking}%</title>
                     </polygon>
                     <polygon class="tri-segment" points="${left.x},${left.y} ${center.x},${center.y} ${right.x},${right.y}"
                         fill="rgba(245,158,11,0.8)">
-                        <title>Tending: ${tending}</title>
+                        <title>Tending: ${tending}%</title>
                     </polygon>
                     <text class="tri-text" x="${trustCenter.x}" y="${trustCenter.y}" text-anchor="middle" dominant-baseline="middle">
                         ${trusting}
@@ -913,7 +923,15 @@
 
         function clampScore(value) {
             const safe = Number(value || 0);
-            return Math.max(0, Math.min(10, safe));
+            return Math.max(0, safe);
+        }
+
+        function scoreToPercent(value) {
+            const safe = clampScore(value);
+            if (safe > 10) {
+                return Math.max(0, Math.min(100, Math.round((safe / 36) * 100)));
+            }
+            return Math.max(0, Math.min(100, Math.round(safe * 10)));
         }
     </script>
 </body>

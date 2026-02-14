@@ -51,7 +51,7 @@ async_saas_reports = async_db["saas_reports"]
 # ==================== CREATE INDEXES ====================
 def create_indexes():
     """Create all necessary database indexes"""
-    print("📊 Creating database indexes...")
+    print(" Creating database indexes...")
     
     # Legacy indexes (your existing)
     raw_responses.create_index([("manager_name", ASCENDING), ("submittedAt", DESCENDING)])
@@ -87,7 +87,7 @@ def create_indexes():
     saas_reports.create_index([("company_id", ASCENDING), ("manager_name", ASCENDING)], unique=True)
     saas_reports.create_index([("created_at", DESCENDING)])
     
-    print("✅ All indexes created successfully")
+    print(" All indexes created successfully")
 
 # ==================== DATABASE INITIALIZATION ====================
 async def init_database():
@@ -97,7 +97,7 @@ async def init_database():
         legacy_count = raw_responses.count_documents({})
         new_count = assessments.count_documents({})
         
-        print(f"📊 Database Status:")
+        print(f" Database Status:")
         print(f"   Legacy responses: {legacy_count}")
         print(f"   New assessments: {new_count}")
         print(f"   Total managers: {managers.count_documents({})}")
@@ -128,10 +128,10 @@ async def init_database():
                 users.update_one({"email": admin_email}, {"$set": admin_user}, upsert=True)
             print(f"Admin ensured (email: {admin_email})")
         
-            print(f"✅ Database '{DB_NAME}' initialized successfully")
+            print(f" Database '{DB_NAME}' initialized successfully")
         
     except Exception as e:
-        print(f"❌ Database initialization error: {e}")
+        print(f" Database initialization error: {e}")
         raise
 
 # ==================== DATABASE HEALTH CHECK ====================
@@ -179,12 +179,12 @@ async def migrate_legacy_data():
     This preserves your existing Google Form data
     """
     try:
-        print("🔄 Migrating legacy data to new structure...")
+        print(" Migrating legacy data to new structure...")
         
         # Count legacy data
         legacy_count = raw_responses.count_documents({})
         if legacy_count == 0:
-            print("📭 No legacy data to migrate")
+            print(" No legacy data to migrate")
             return {"migrated": 0, "message": "No legacy data found"}
         
         # Create a default company for legacy data
@@ -217,8 +217,8 @@ async def migrate_legacy_data():
             )
             migrated_managers += 1
         
-        print(f"✅ Migrated {migrated_managers} managers to new structure")
-        print(f"✅ Legacy data preserved in 'legacy_company'")
+        print(f" Migrated {migrated_managers} managers to new structure")
+        print(f" Legacy data preserved in 'legacy_company'")
         
         return {
             "success": True,
@@ -228,12 +228,12 @@ async def migrate_legacy_data():
         }
         
     except Exception as e:
-        print(f"❌ Migration error: {e}")
+        print(f" Migration error: {e}")
         return {"success": False, "error": str(e)}
 
 # ==================== EXPORT COLLECTIONS ====================
-print(f"✅ Connected to MongoDB: {DB_NAME}")
-print(f"📁 Collections available:")
+print(f" Connected to MongoDB: {DB_NAME}")
+print(f" Collections available:")
 print(f"   Legacy: google_form_responses, manager, reports")
 print(f"   SaaS: users, companies, assessments, form_submissions")
 

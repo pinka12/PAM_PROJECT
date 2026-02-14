@@ -1,13 +1,16 @@
-print("🔥🔥 360-DEGREE MANAGER ASSESSMENT SAAS PLATFORM 🔥🔥")
+﻿print("** 360-DEGREE MANAGER ASSESSMENT SAAS PLATFORM **")
 import os
 import asyncio
 import json
 import uuid
 import urllib.parse
 import io
+import base64
+import re
 import random
 import smtplib
 import ssl
+import textwrap
 from email.message import EmailMessage
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
@@ -20,6 +23,12 @@ from fastapi.security import OAuth2PasswordBearer
 import plotly.graph_objects as go
 import plotly.io as pio
 from dotenv import load_dotenv
+from openai import OpenAI
+try:
+    import cloudinary
+    import cloudinary.uploader
+except Exception:
+    cloudinary = None
 
 # Local imports - Updated for SaaS
 from app.db import (
@@ -31,7 +40,16 @@ from app.db import (
     # Functions
     create_indexes, check_database_health, migrate_legacy_data
 )
-from app.processor import process_form_answers, normalize_name, aggregate_manager_scores
+from app.processor import (
+    process_form_answers,
+    normalize_name,
+    aggregate_manager_scores,
+    get_subcategory_keys,
+    SUBCATEGORY_ORDER,
+    compute_subcategory_averages,
+    build_subcategory_remark_context,
+    build_subcategory_prompt_block,
+)
 from app.aggregator import update_manager_aggregation, migrate_existing_data, get_manager_hierarchy
 from app.auth import (
     verify_password, get_password_hash, create_access_token,
@@ -41,11 +59,12 @@ from app.models import (
     UserCreate, UserResponse, CompanyCreate, CompanyResponse,
     ManagerResponse, AssessmentCreate, DashboardStats, HealthCheck
 )
+from app.reports import build_manager_pdf_report, build_company_pdf_report
 
 load_dotenv()
 
 app = FastAPI(
-    title="360° Manager Assessment SaaS",
+    title="360Â° Manager Assessment SaaS",
     description="Multi-company manager assessment platform with real-time analytics",
     version="3.0.0",
     docs_url="/api/docs",
@@ -125,7 +144,9 @@ async def post_login(request: Request, email: str = Form(...), password: str = F
             key="access_token",
             value=access_token,
             httponly=True,
-            samesite="lax"
+            samesite="lax",
+            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            expires=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         )
         return response
     except Exception as e:
@@ -603,7 +624,14 @@ async def home(request: Request):
             user = await get_current_user(token)
             if user:
                 response = RedirectResponse(url="/dashboard")
-                response.set_cookie(key="access_token", value=token, httponly=True)
+                response.set_cookie(
+                    key="access_token",
+                    value=token,
+                    httponly=True,
+                    samesite="lax",
+                    max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+                    expires=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+                )
                 return response
         except:
             pass
@@ -1175,19 +1203,29 @@ async def company_overview(company_id: str, current_user = Depends(require_admin
     manager_count = await async_managers.count_documents({"company_id": company_id})
     assessment_count = await async_assessments.count_documents({"company_id": company_id})
 
-    pipeline = [
-        {"$match": {"company_id": company_id}},
-        {"$group": {
-            "_id": None,
-            "avg_trusting": {"$avg": "$category_averages.trusting"},
-            "avg_tasking": {"$avg": "$category_averages.tasking"},
-            "avg_tending": {"$avg": "$category_averages.tending"}
-        }}
-    ]
-    avg_result = await async_managers.aggregate(pipeline).to_list(length=1)
-    avg_scores = avg_result[0] if avg_result else {}
+    # Company averages by manager count (each manager contributes equally)
+    manager_docs = await async_managers.find(
+        {"company_id": company_id},
+        {"category_averages": 1}
+    ).to_list(length=5000)
+    manager_total = 0
+    sums = {"trusting": 0.0, "tasking": 0.0, "tending": 0.0}
+    for mgr in manager_docs:
+        category_scores = mgr.get("category_averages", {}) or {}
+        sums["trusting"] += float(category_scores.get("trusting", 0) or 0)
+        sums["tasking"] += float(category_scores.get("tasking", 0) or 0)
+        sums["tending"] += float(category_scores.get("tending", 0) or 0)
+        manager_total += 1
 
-    if not avg_scores or all(avg_scores.get(key) is None for key in ["avg_trusting", "avg_tasking", "avg_tending"]):
+    avg_scores = {}
+    if manager_total > 0:
+        avg_scores = {
+            "avg_trusting": sums["trusting"] / manager_total,
+            "avg_tasking": sums["tasking"] / manager_total,
+            "avg_tending": sums["tending"] / manager_total,
+        }
+
+    if not avg_scores:
         assessment_pipeline = [
             {"$match": {"company_id": company_id}},
             {"$group": {
@@ -1312,129 +1350,656 @@ async def update_company(company_id: str, request: Request, current_user = Depen
     await async_companies.update_one({"id": company_id}, {"$set": update_fields})
     return {"success": True}
 
+def _extract_summary_from_report(report_text: str) -> str:
+    if not report_text:
+        return ""
+    lines = [line.strip() for line in report_text.splitlines() if line.strip()]
+    if not lines:
+        return ""
+    for idx, line in enumerate(lines):
+        if line.lower().startswith("summary:"):
+            value = line.split(":", 1)[1].strip()
+            if value:
+                return value
+            if idx + 1 < len(lines):
+                return lines[idx + 1]
+    return lines[0]
+
+def _extract_openai_text(response: Any) -> str:
+    text = getattr(response, "output_text", "") or ""
+    if text:
+        return str(text).strip()
+    output = getattr(response, "output", None) or []
+    collected: List[str] = []
+    for item in output:
+        content = getattr(item, "content", None) or []
+        for chunk in content:
+            chunk_text = getattr(chunk, "text", None)
+            if chunk_text:
+                collected.append(str(chunk_text))
+    return "\n".join(collected).strip()
+
+def _normalize_category_averages_scale(category_averages: Dict[str, Any]) -> Dict[str, float]:
+    trusting = float(category_averages.get("trusting", 0) or 0)
+    tasking = float(category_averages.get("tasking", 0) or 0)
+    tending = float(category_averages.get("tending", 0) or 0)
+    return {
+        "trusting": round(trusting, 2),
+        "tasking": round(tasking, 2),
+        "tending": round(tending, 2),
+    }
+
+def _strip_internal_report_fields(report_doc: Dict[str, Any]) -> Dict[str, Any]:
+    cleaned = dict(report_doc or {})
+    cleaned.pop("_id", None)
+    cleaned.pop("pdf_content_b64", None)
+    return cleaned
+
+def _get_openai_client() -> Optional[OpenAI]:
+    api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
+    if not api_key:
+        return None
+    try:
+        return OpenAI(api_key=api_key)
+    except Exception:
+        return None
+
+def _is_cloudinary_enabled() -> bool:
+    if cloudinary is None:
+        return False
+    cloudinary_url = (os.getenv("CLOUDINARY_URL") or "").strip()
+    if cloudinary_url:
+        return True
+    return bool(
+        (os.getenv("CLOUDINARY_CLOUD_NAME") or "").strip()
+        and (os.getenv("CLOUDINARY_API_KEY") or "").strip()
+        and (os.getenv("CLOUDINARY_API_SECRET") or "").strip()
+    )
+
+def _configure_cloudinary() -> None:
+    if not _is_cloudinary_enabled():
+        return
+    cloudinary_url = (os.getenv("CLOUDINARY_URL") or "").strip()
+    if cloudinary_url:
+        cloudinary.config(cloudinary_url=cloudinary_url, secure=True)
+        return
+    cloudinary.config(
+        cloud_name=(os.getenv("CLOUDINARY_CLOUD_NAME") or "").strip(),
+        api_key=(os.getenv("CLOUDINARY_API_KEY") or "").strip(),
+        api_secret=(os.getenv("CLOUDINARY_API_SECRET") or "").strip(),
+        secure=True,
+    )
+
+def _safe_cloudinary_part(value: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9_-]+", "_", (value or "").strip())
+    cleaned = cleaned.strip("_")
+    return cleaned or "na"
+
+async def _upload_pdf_to_cloudinary(
+    pdf_bytes: bytes,
+    company_id: str,
+    report_scope: str,
+    manager_name: str,
+) -> Dict[str, Any]:
+    if not _is_cloudinary_enabled():
+        return {}
+
+    folder = (os.getenv("CLOUDINARY_PDF_FOLDER") or "pam_reports").strip().strip("/")
+    public_id = (
+        f"{folder}/"
+        f"{_safe_cloudinary_part(company_id)}/"
+        f"{_safe_cloudinary_part(report_scope)}/"
+        f"{_safe_cloudinary_part(manager_name)}"
+    )
+
+    def _upload() -> Dict[str, Any]:
+        _configure_cloudinary()
+        return cloudinary.uploader.upload(
+            io.BytesIO(pdf_bytes),
+            resource_type="raw",
+            public_id=public_id,
+            overwrite=True,
+            invalidate=True,
+            unique_filename=False,
+            use_filename=False,
+            format="pdf",
+        )
+
+    try:
+        result = await asyncio.to_thread(_upload)
+        return result or {}
+    except Exception as exc:
+        print(f"Cloudinary upload failed: {exc}")
+        return {}
+
+async def _run_openai_prompt(system_text: str, user_text: str, model_name: str) -> str:
+    client = _get_openai_client()
+    if not client:
+        return ""
+
+    def _call_openai() -> str:
+        response = client.responses.create(
+            model=model_name,
+            input=[
+                {"role": "system", "content": system_text},
+                {"role": "user", "content": user_text},
+            ],
+        )
+        return _extract_openai_text(response)
+
+    try:
+        return (await asyncio.to_thread(_call_openai)).strip()
+    except Exception as exc:
+        print(f"OpenAI call failed: {exc}")
+        return ""
+
+def _extract_first_json_object(raw: str) -> Dict[str, Any]:
+    text = str(raw or "").strip()
+    if not text:
+        return {}
+    try:
+        parsed = json.loads(text)
+        return parsed if isinstance(parsed, dict) else {}
+    except Exception:
+        pass
+    start = text.find("{")
+    end = text.rfind("}")
+    if start >= 0 and end > start:
+        snippet = text[start : end + 1]
+        try:
+            parsed = json.loads(snippet)
+            return parsed if isinstance(parsed, dict) else {}
+        except Exception:
+            return {}
+    return {}
+
+def _coerce_manager_report_json(payload: Dict[str, Any]) -> Dict[str, Any]:
+    data = payload if isinstance(payload, dict) else {}
+    def _arr(key: str) -> List[str]:
+        value = data.get(key, [])
+        if not isinstance(value, list):
+            return []
+        out: List[str] = []
+        for item in value:
+            text = str(item).strip()
+            if text:
+                out.append(text)
+        return out
+    return {
+        "executive_summary": str(data.get("executive_summary", "")).strip(),
+        "behavioral_interpretation": str(data.get("behavioral_interpretation", "")).strip(),
+        "strengths": _arr("strengths"),
+        "development_areas": _arr("development_areas"),
+        "risks": _arr("risks"),
+        "coaching_plan": str(data.get("coaching_plan", "")).strip(),
+        "action_plan_30_60_90": str(data.get("action_plan_30_60_90", "")).strip(),
+    }
+
+def _is_valid_manager_report_json(payload: Dict[str, Any]) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    required = [
+        "executive_summary",
+        "behavioral_interpretation",
+        "strengths",
+        "development_areas",
+        "risks",
+        "coaching_plan",
+        "action_plan_30_60_90",
+    ]
+    return all(key in payload for key in required)
+
 async def _generate_manager_report(company_id: str, manager_name: str, force_refresh: bool = False) -> Dict[str, Any]:
     manager = await async_managers.find_one({"company_id": company_id, "manager_name": manager_name})
     if not manager:
         raise HTTPException(status_code=404, detail="Manager not found")
 
     existing = await async_saas_reports.find_one({"company_id": company_id, "manager_name": manager_name})
-    if existing and not force_refresh:
-        if "_id" in existing:
-            existing["_id"] = str(existing["_id"])
-        return existing
+    api_key = os.getenv("OPENAI_API_KEY", "")
 
-    averages = manager.get("category_averages", {})
+    if existing and not force_refresh:
+        report_text_existing = str(existing.get("report_text", "") or "").strip()
+        if not report_text_existing and existing.get("ai_analysis"):
+            report_text_existing = str(existing.get("ai_analysis", "")).strip()
+            existing["report_text"] = report_text_existing
+            await async_saas_reports.update_one(
+                {"company_id": company_id, "manager_name": manager_name},
+                {"$set": {"report_text": report_text_existing, "updated_at": datetime.utcnow()}}
+            )
+
+        parsed_existing = _extract_first_json_object(report_text_existing)
+        parsed_existing = _coerce_manager_report_json(parsed_existing) if parsed_existing else {}
+        has_valid_shape = _is_valid_manager_report_json(parsed_existing)
+
+        should_retry = bool(api_key) and (
+            existing.get("source") in ["fallback", "error"] or not has_valid_shape
+        )
+
+        updates: Dict[str, Any] = {}
+        if has_valid_shape and not existing.get("report_json"):
+            updates["report_json"] = parsed_existing
+        if not existing.get("summary_text"):
+            summary = parsed_existing.get("executive_summary", "") if has_valid_shape else _extract_summary_from_report(report_text_existing)
+            updates["summary_text"] = summary
+            existing["summary_text"] = summary
+        if updates:
+            updates["updated_at"] = datetime.utcnow()
+            await async_saas_reports.update_one(
+                {"company_id": company_id, "manager_name": manager_name},
+                {"$set": updates}
+            )
+            existing.update(updates)
+
+        if not should_retry:
+            if "_id" in existing:
+                existing["_id"] = str(existing["_id"])
+            if has_valid_shape:
+                existing["report_json"] = parsed_existing
+                existing["report_text"] = json.dumps(parsed_existing, indent=2)
+            return existing
+
+    averages = _normalize_category_averages_scale(manager.get("category_averages", {}) or {})
+    subcategory_averages = manager.get("subcategory_averages", {})
+    subcategory_remarks = manager.get("subcategory_remarks", {})
+    subcategory_prompt_block = build_subcategory_prompt_block(subcategory_averages)
     total_assessments = manager.get("total_assessments", 0)
-    prompt = (
-        "You are an HR analyst. Create a concise report with headings:\n"
-        "Nature:\nImprovement Areas:\nRequired Training:\n"
-        f"Manager: {manager_name}\n"
-        f"Assessments: {total_assessments}\n"
-        f"Trusting: {averages.get('trusting', 0)}\n"
-        f"Tasking: {averages.get('tasking', 0)}\n"
-        f"Tending: {averages.get('tending', 0)}\n"
+    model_name = (os.getenv("OPENAI_MANAGER_MODEL") or os.getenv("OPENAI_MODEL") or "gpt-4o-mini").strip()
+
+    # ===============================
+    # 🔥 ADVANCED DIAGNOSTIC PROMPT
+    # ===============================
+
+    system_prompt = (
+        "You are a Senior Leadership Diagnostic Expert and Executive Coach with 25+ years of "
+        "experience in behavioral analytics, executive performance evaluation, and organizational development. "
+        "You produce deep, evidence-based leadership diagnostic reports suitable for HR board review."
     )
 
-    api_key = os.getenv("GEMINI_API_KEY", "")
+    user_prompt = (
+        "Analyze the manager using the 3-Dimensional Leadership Framework:\n"
+        "1. Trusting (psychological safety, delegation, transparency)\n"
+        "2. Tasking (execution discipline, accountability, performance drive)\n"
+        "3. Tending (people development, empathy, coaching ability)\n\n"
+
+        "SUBCATEGORY ZONE CLASSIFICATION RULES:\n"
+        "🔴 RED (3–5): Behavioral risk zone; consistent weakness or credibility gap.\n"
+        "🟠 AMBER (6–7): Functional but inconsistent; situational leadership maturity.\n"
+        "🟢 GREEN (8–9): Demonstrated strength; reliable and visible capability.\n\n"
+
+        "MANDATORY MICRO ANALYSIS REQUIREMENTS:\n"
+        "- Classify each subcategory into RED/AMBER/GREEN.\n"
+        "- Detect repeated RED clusters and interpret systemic pattern.\n"
+        "- Cross-correlate subcategory patterns with main category scores.\n"
+        "- Identify imbalance across Trusting, Tasking, Tending.\n"
+        "- Assign Leadership Archetype based on score pattern.\n"
+        "- Interpret behavioral implications; DO NOT restate raw scores.\n"
+        "- Use qualitative remarks as behavioral evidence.\n"
+        "- Provide business impact insights and leadership risk projection.\n\n"
+
+        "Return STRICTLY valid JSON in this exact structure:\n"
+        "{\n"
+        '  "executive_summary": "",\n'
+        '  "behavioral_interpretation": "",\n'
+        '  "strengths": [],\n'
+        '  "development_areas": [],\n'
+        '  "risks": [],\n'
+        '  "coaching_plan": "",\n'
+        '  "action_plan_30_60_90": ""\n'
+        "}\n\n"
+
+        f"Manager Name: {manager_name}\n"
+        f"Total Assessments: {total_assessments}\n\n"
+
+        "MAIN CATEGORY SCORES:\n"
+        f"Trusting: {averages.get('trusting', 0)}\n"
+        f"Tasking: {averages.get('tasking', 0)}\n"
+        f"Tending: {averages.get('tending', 0)}\n\n"
+
+        "SUBCATEGORY AVERAGES:\n"
+        f"{subcategory_prompt_block}\n\n"
+
+        "SUBCATEGORY REMARKS:\n"
+        f"{json.dumps(subcategory_remarks, default=str)}\n\n"
+
+        "Ensure deep diagnostic reasoning and executive-level professionalism."
+    )
+
     if not api_key:
-        report_text = (
-            "Nature:\nGemini API key not configured.\n\n"
-            "Improvement Areas:\nGemini API key not configured.\n\n"
-            "Required Training:\nGemini API key not configured.\n"
-        )
+        report_json = {
+            "executive_summary": "OpenAI API key not configured.",
+            "behavioral_interpretation": "OpenAI API key not configured.",
+            "strengths": [],
+            "development_areas": [],
+            "risks": [],
+            "coaching_plan": "OpenAI API key not configured.",
+            "action_plan_30_60_90": "OpenAI API key not configured."
+        }
+        summary_text = report_json["executive_summary"]
+        report_text = json.dumps(report_json, indent=2)
         source = "fallback"
+
     else:
         try:
-            import google.generativeai as genai
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel("gemini-1.5-flash")
-            response = model.generate_content(prompt)
-            report_text = (response.text or "").strip()
-            source = "gemini"
+            from openai import OpenAI
+            client = OpenAI(api_key=api_key)
+
+            report_json = {}
+
+            try:
+                response = client.responses.create(
+                    model=model_name,
+                    input=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    temperature=0.5
+                )
+                report_text_raw = _extract_openai_text(response)
+                report_json = _extract_first_json_object(report_text_raw)
+            except Exception:
+                report_json = {}
+
+            if not _is_valid_manager_report_json(report_json):
+                chat_response = client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    temperature=0.5,
+                    response_format={"type": "json_object"}
+                )
+                chat_text = (chat_response.choices[0].message.content or "").strip()
+                report_json = _extract_first_json_object(chat_text)
+
+            if not _is_valid_manager_report_json(report_json):
+                raise ValueError("Model did not return valid manager report JSON")
+
+            report_json = _coerce_manager_report_json(report_json)
+            report_text = json.dumps(report_json, indent=2)
+
+            summary_text = report_json.get("executive_summary", "")
+            source = "openai"
+
         except Exception as e:
-            report_text = (
-                "Nature:\nUnable to generate report.\n\n"
-                f"Improvement Areas:\n{str(e)}\n\n"
-                "Required Training:\nPlease retry later.\n"
-            )
+            report_json = {
+                "executive_summary": "Unable to generate report.",
+                "behavioral_interpretation": str(e),
+                "strengths": [],
+                "development_areas": [],
+                "risks": [],
+                "coaching_plan": "Please retry later.",
+                "action_plan_30_60_90": "Please retry later."
+            }
+            summary_text = report_json["executive_summary"]
+            report_text = json.dumps(report_json, indent=2)
             source = "error"
 
     report_doc = {
         "company_id": company_id,
         "manager_name": manager_name,
+        "summary_text": summary_text,
         "report_text": report_text,
+        "report_json": report_json,
+        "ai_analysis": report_text,
         "source": source,
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow()
     }
+
     await async_saas_reports.update_one(
         {"company_id": company_id, "manager_name": manager_name},
         {"$set": report_doc},
         upsert=True
     )
+
     return report_doc
 
+async def _generate_company_owner_report(company_id: str, force_refresh: bool = False) -> Dict[str, Any]:
+    company = await async_companies.find_one({"id": company_id})
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    owner_key = "__COMPANY_OWNER__"
+    query = {"company_id": company_id, "manager_name": owner_key}
+    existing = await async_saas_reports.find_one(query)
+    if existing and not force_refresh:
+        existing_report_text = str(existing.get("report_text", "")).strip() or str(existing.get("ai_analysis", "")).strip()
+        if existing_report_text:
+            existing["report_text"] = existing_report_text
+            return _strip_internal_report_fields(existing)
+
+    manager_docs = await async_managers.find({"company_id": company_id}).sort("manager_name", 1).to_list(length=5000)
+    overview_weight = {"trusting": 0.0, "tasking": 0.0, "tending": 0.0}
+    total_responses = 0.0
+    manager_lines: List[str] = []
+    for mgr in manager_docs:
+        count = float(mgr.get("total_assessments", 0) or 0)
+        averages = _normalize_category_averages_scale(mgr.get("category_averages", {}) or {})
+        if count > 0:
+            overview_weight["trusting"] += averages["trusting"] * count
+            overview_weight["tasking"] += averages["tasking"] * count
+            overview_weight["tending"] += averages["tending"] * count
+            total_responses += count
+        manager_lines.append(
+            f"- {mgr.get('manager_name', '')} | reports: {int(count)} | "
+            f"trusting {averages['trusting']:.2f}, tasking {averages['tasking']:.2f}, tending {averages['tending']:.2f}"
+        )
+
+    company_averages = {
+        "trusting": round(overview_weight["trusting"] / total_responses, 2) if total_responses else 0.0,
+        "tasking": round(overview_weight["tasking"] / total_responses, 2) if total_responses else 0.0,
+        "tending": round(overview_weight["tending"] / total_responses, 2) if total_responses else 0.0,
+    }
+    model_name = (os.getenv("OPENAI_COMPANY_MODEL") or os.getenv("OPENAI_MODEL") or "gpt-4o-mini").strip()
+    company_prompt = textwrap.dedent(
+        f"""
+        You are an experienced leadership consultant writing a company-wide consolidated report.
+        Use the manager-level score data below and produce:
+        1) Executive summary
+        2) Organization-level strengths
+        3) Systemic risk themes
+        4) Manager cohort observations
+        5) 90-day company action plan with measurable outcomes
+
+        Company: {company.get("name", "")}
+        Total Managers: {len(manager_docs)}
+        Total Responses: {int(total_responses)}
+        Weighted Company Averages (0-10): {json.dumps(company_averages)}
+
+        Manager summaries:
+        {chr(10).join(manager_lines)}
+        """
+    ).strip()
+    report_text = await _run_openai_prompt(
+        "You write objective, practical consulting reports for leadership teams.",
+        company_prompt,
+        model_name,
+    )
+    if not report_text:
+        report_text = (
+            f"Company Leadership Consolidated Report\n\n"
+            f"Company: {company.get('name', '')}\n"
+            f"Managers assessed: {len(manager_docs)}\n"
+            f"Weighted scores (0-10): Trusting {company_averages['trusting']}, "
+            f"Tasking {company_averages['tasking']}, Tending {company_averages['tending']}.\n"
+            f"\nDetailed narrative could not be generated from AI at this moment."
+        )
+
+    now = datetime.utcnow()
+    report_doc = {
+        "id": str(uuid.uuid4()),
+        "company_id": company_id,
+        "manager_name": owner_key,
+        "report_scope": "company_owner",
+        "report_text": report_text,
+        "ai_analysis": report_text,
+        "model_name": model_name,
+        "generated_at": now,
+        "company_averages": company_averages,
+        "manager_count": len(manager_docs),
+        "response_count": int(total_responses),
+        "updated_at": now,
+    }
+    await async_saas_reports.update_one(
+        query,
+        {"$set": report_doc, "$setOnInsert": {"created_at": now}},
+        upsert=True,
+    )
+    saved = await async_saas_reports.find_one(query)
+    return _strip_internal_report_fields(saved or report_doc)
+
+async def _save_pdf_in_report(
+    query: Dict[str, Any],
+    filename: str,
+    pdf_bytes: bytes,
+    company_id: str,
+    report_scope: str,
+    manager_name: str,
+) -> Dict[str, Any]:
+    now = datetime.utcnow()
+    cloudinary_result = await _upload_pdf_to_cloudinary(
+        pdf_bytes=pdf_bytes,
+        company_id=company_id,
+        report_scope=report_scope,
+        manager_name=manager_name,
+    )
+    cloudinary_url = str(cloudinary_result.get("secure_url", "") or "").strip()
+
+    set_payload = {
+        "pdf_filename": filename,
+        "pdf_mime": "application/pdf",
+        "pdf_size_bytes": len(pdf_bytes),
+        "pdf_generated_at": now,
+        "updated_at": now,
+    }
+    if cloudinary_url:
+        set_payload.update(
+            {
+                "pdf_storage": "cloudinary",
+                "cloudinary_public_id": cloudinary_result.get("public_id"),
+                "cloudinary_version": cloudinary_result.get("version"),
+                "cloudinary_secure_url": cloudinary_url,
+            }
+        )
+    else:
+        set_payload.update(
+            {
+                "pdf_storage": "db_fallback",
+                "pdf_content_b64": base64.b64encode(pdf_bytes).decode("ascii"),
+            }
+        )
+
+    await async_saas_reports.update_one(
+        query,
+        {
+            "$set": set_payload,
+            "$setOnInsert": {"id": str(uuid.uuid4()), "created_at": now},
+        },
+        upsert=True,
+    )
+    return {
+        "cloudinary_url": cloudinary_url,
+        "storage": set_payload.get("pdf_storage", ""),
+    }
+
 @app.get("/api/companies/{company_id}/manager/{manager_name}/report")
-async def manager_report(company_id: str, manager_name: str, current_user = Depends(require_admin_user)):
-    report_doc = await _generate_manager_report(company_id, manager_name)
+async def manager_report(
+    company_id: str,
+    manager_name: str,
+    force: bool = Query(False),
+    current_user = Depends(require_admin_user),
+):
+    report_doc = await _generate_manager_report(company_id, manager_name, force_refresh=force)
     return {"success": True, "report": report_doc}
 
 @app.get("/api/companies/{company_id}/manager/{manager_name}/report.pdf")
-async def manager_report_pdf(company_id: str, manager_name: str, current_user = Depends(require_admin_user)):
+async def manager_report_pdf(
+    company_id: str,
+    manager_name: str,
+    force: bool = Query(False),
+    current_user = Depends(require_admin_user),
+):
+    report_query = {"company_id": company_id, "manager_name": manager_name}
+    existing_report = await async_saas_reports.find_one(report_query)
+    existing_url = str((existing_report or {}).get("cloudinary_secure_url", "") or "").strip()
+    if existing_url and not force:
+        return RedirectResponse(url=existing_url, status_code=307)
+
     manager = await async_managers.find_one({"company_id": company_id, "manager_name": manager_name})
     if not manager:
         raise HTTPException(status_code=404, detail="Manager not found")
-
+    company = await async_companies.find_one({"id": company_id})
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
     report_doc = await _generate_manager_report(company_id, manager_name)
 
-    from reportlab.lib.pagesizes import letter
-    from reportlab.pdfgen import canvas
+    buffer = io.BytesIO()
+    build_manager_pdf_report(buffer, company, manager_name, manager, report_doc)
+    pdf_bytes = buffer.getvalue()
+    filename = f"{manager_name}_report.pdf".replace(" ", "_")
+    save_result = await _save_pdf_in_report(
+        report_query,
+        filename,
+        pdf_bytes,
+        company_id=company_id,
+        report_scope="manager",
+        manager_name=manager_name,
+    )
+    cloudinary_url = str(save_result.get("cloudinary_url", "") or "").strip()
+    if cloudinary_url:
+        return RedirectResponse(url=cloudinary_url, status_code=307)
+
+    headers = {"Content-Disposition": f"attachment; filename={filename}"}
+    return StreamingResponse(io.BytesIO(pdf_bytes), media_type="application/pdf", headers=headers)
+
+@app.get("/api/companies/{company_id}/report.pdf")
+async def company_owner_report_pdf(
+    company_id: str,
+    force: bool = Query(False),
+    current_user = Depends(require_admin_user)
+):
+    report_query = {"company_id": company_id, "manager_name": "__COMPANY_OWNER__"}
+    existing_report = await async_saas_reports.find_one(report_query)
+    existing_url = str((existing_report or {}).get("cloudinary_secure_url", "") or "").strip()
+    if existing_url and not force:
+        return RedirectResponse(url=existing_url, status_code=307)
+
+    company = await async_companies.find_one({"id": company_id})
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    overview = await company_overview(company_id, current_user)
+    manager_docs = await async_managers.find({"company_id": company_id}).sort("manager_name", 1).to_list(length=5000)
+    hierarchy = _build_company_hierarchy(manager_docs)
+    report_doc = await _generate_company_owner_report(company_id, force_refresh=force)
 
     buffer = io.BytesIO()
-    pdf = canvas.Canvas(buffer, pagesize=letter)
-    width, height = letter
+    build_company_pdf_report(buffer, company, overview, hierarchy, manager_docs, report_doc)
+    pdf_bytes = buffer.getvalue()
+    filename = f"{company.get('name', 'company')}_owner_report.pdf".replace(" ", "_")
+    save_result = await _save_pdf_in_report(
+        report_query,
+        filename,
+        pdf_bytes,
+        company_id=company_id,
+        report_scope="company_owner",
+        manager_name="__COMPANY_OWNER__",
+    )
+    cloudinary_url = str(save_result.get("cloudinary_url", "") or "").strip()
+    if cloudinary_url:
+        return RedirectResponse(url=cloudinary_url, status_code=307)
 
-    y = height - 72
-    pdf.setFont("Helvetica-Bold", 16)
-    pdf.drawString(72, y, "Manager Assessment Report")
-    y -= 30
-
-    pdf.setFont("Helvetica", 11)
-    pdf.drawString(72, y, f"Manager: {manager_name}")
-    y -= 18
-    pdf.drawString(72, y, f"Company ID: {company_id}")
-    y -= 18
-    pdf.drawString(72, y, f"Assessments: {manager.get('total_assessments', 0)}")
-    y -= 24
-
-    averages = manager.get("category_averages", {})
-    pdf.drawString(72, y, f"Trusting: {averages.get('trusting', 0)}")
-    y -= 16
-    pdf.drawString(72, y, f"Tasking: {averages.get('tasking', 0)}")
-    y -= 16
-    pdf.drawString(72, y, f"Tending: {averages.get('tending', 0)}")
-    y -= 24
-
-    pdf.setFont("Helvetica-Bold", 12)
-    pdf.drawString(72, y, "AI Report")
-    y -= 18
-
-    pdf.setFont("Helvetica", 10)
-    for line in report_doc.get("report_text", "").splitlines():
-        if y < 72:
-            pdf.showPage()
-            y = height - 72
-            pdf.setFont("Helvetica", 10)
-        pdf.drawString(72, y, line[:120])
-        y -= 14
-
-    pdf.showPage()
-    pdf.save()
-    buffer.seek(0)
-
-    filename = f"{manager_name}_report.pdf".replace(" ", "_")
     headers = {"Content-Disposition": f"attachment; filename={filename}"}
-    return StreamingResponse(buffer, media_type="application/pdf", headers=headers)
+    return StreamingResponse(io.BytesIO(pdf_bytes), media_type="application/pdf", headers=headers)
+
+@app.get("/api/companies/{company_id}/report")
+async def company_owner_report(
+    company_id: str,
+    force: bool = Query(False),
+    current_user = Depends(require_admin_user)
+):
+    report_doc = await _generate_company_owner_report(company_id, force_refresh=force)
+    return {"success": True, "report": report_doc}
 
 # ==================== ASSESSMENT FORM ENDPOINTS ====================
 @app.get("/form/{company_slug}")
@@ -1567,6 +2132,8 @@ async def submit_assessment(
         # Calculate scores based on answers
         category_scores = {"trusting": 0, "tasking": 0, "tending": 0}
         question_count = {"trusting": 0, "tasking": 0, "tending": 0}
+        subcategory_keys = get_subcategory_keys()
+        subcategory_scores, subcategory_counts = ({k: 0 for k in subcategory_keys}, {k: 0 for k in subcategory_keys})
         
         for question_id, answer in answers.items():
             # Determine category from question ID
@@ -1593,16 +2160,20 @@ async def submit_assessment(
                 score = question["scores"].get(answer, 0)
                 category_scores[category] += score
                 question_count[category] += 1
+                behavior = question.get("behavior", "")
+                if behavior in subcategory_scores:
+                    subcategory_scores[behavior] += score
+                    subcategory_counts[behavior] += 1
         
-        # Calculate average per category (scale to 0-10)
+        # Category marks are kept as raw obtained marks (max 36 per category).
         category_averages = {}
         for category in ["trusting", "tasking", "tending"]:
             if question_count[category] > 0:
-                # Convert to 0-10 scale: (total_score / max_possible) * 10
-                max_possible = 3 * 12  # 3 points per question * 12 questions
-                category_averages[category] = round((category_scores[category] / max_possible) * 10, 1)
+                category_averages[category] = round(float(category_scores[category]), 2)
             else:
                 category_averages[category] = 0.0
+        subcategory_averages = compute_subcategory_averages(subcategory_scores, subcategory_counts)
+        subcategory_remarks = build_subcategory_remark_context(subcategory_averages)
         
         # Calculate overall score (0-100)
         max_score_per_category = 3 * 12  # 3 points per question * 12 questions
@@ -1623,6 +2194,9 @@ async def submit_assessment(
             "answers": answers,
             "category_scores": category_scores,
             "category_averages": category_averages,
+            "subcategory_scores": subcategory_scores,
+            "subcategory_averages": subcategory_averages,
+            "subcategory_remarks": subcategory_remarks,
             "overall_score": overall_score,
             "submission_time": datetime.utcnow(),
             "session_id": session_id,
@@ -1655,6 +2229,7 @@ async def submit_assessment(
             "message": "Assessment submitted successfully",
             "response_id": response_id,
             "scores": category_averages,
+            "subcategory_averages": subcategory_averages,
             "overall_score": overall_score,
             "submission_time": datetime.utcnow().isoformat(),
             "thank_you_url": f"/form/{company_slug}/thank-you?session={session_id}"
@@ -1663,7 +2238,7 @@ async def submit_assessment(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Error submitting assessment: {e}")
+        print(f"âŒ Error submitting assessment: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/form/{company_slug}/thank-you")
@@ -1730,28 +2305,46 @@ async def update_manager_aggregation_saas(company_id: str, manager_name: str):
                 "tending": agg["tending_sum"]
             }
 
-            # Calculate averages from category totals (sum / count)
-            category_averages = {
-                "trusting": round(category_totals["trusting"] / total_assessments, 2) if total_assessments else 0,
-                "tasking": round(category_totals["tasking"] / total_assessments, 2) if total_assessments else 0,
-                "tending": round(category_totals["tending"] / total_assessments, 2) if total_assessments else 0
-            }
-            
             # Calculate confidence score based on number of assessments
             confidence_score = min(total_assessments * 5, 100)
 
+            subcategory_keys = get_subcategory_keys()
+            subcategory_totals = {k: 0 for k in subcategory_keys}
+            subcategory_average_sums = {k: 0.0 for k in subcategory_keys}
             assessment_docs = await async_assessments.find(
                 {"company_id": company_id, "manager_name": manager_name},
-                {"submission_time": 1, "category_scores": 1, "overall_score": 1}
+                {"id": 1, "submission_time": 1, "category_scores": 1, "subcategory_scores": 1, "overall_score": 1}
             ).sort("submission_time", 1).to_list(length=10000)
             assessment_summaries = []
             for index, assessment in enumerate(assessment_docs, start=1):
+                assessment_subcategory_scores = assessment.get("subcategory_scores", {}) or {}
+                assessment_category_scores = assessment.get("category_scores", {}) or {}
+                for behavior in subcategory_totals.keys():
+                    subcategory_totals[behavior] += assessment_subcategory_scores.get(behavior, 0)
+                    # Average each behavior by assessment count (raw 0-9 marks).
+                    subcategory_average_sums[behavior] += float(assessment_subcategory_scores.get(behavior, 0) or 0)
                 assessment_summaries.append({
                     "sequence": index,
+                    "response_id": assessment.get("id", ""),
                     "submitted_at": assessment.get("submission_time"),
-                    "category_totals": assessment.get("category_scores", {}),
+                    # Explicit per-response marks for DB cross-check
+                    "category_marks": assessment_category_scores,
+                    "subcategory_marks": assessment_subcategory_scores,
+                    # Backward-compatible aliases
+                    "category_totals": assessment_category_scores,
+                    "subcategory_totals": assessment_subcategory_scores,
                     "overall_score": assessment.get("overall_score", 0)
                 })
+            subcategory_averages = {
+                behavior: round(total / total_assessments, 2) if total_assessments else 0.0
+                for behavior, total in subcategory_average_sums.items()
+            }
+            category_averages = {
+                "trusting": round(sum(subcategory_averages.get(b, 0.0) for b in SUBCATEGORY_ORDER["trusting"]), 2),
+                "tasking": round(sum(subcategory_averages.get(b, 0.0) for b in SUBCATEGORY_ORDER["tasking"]), 2),
+                "tending": round(sum(subcategory_averages.get(b, 0.0) for b in SUBCATEGORY_ORDER["tending"]), 2),
+            }
+            subcategory_remarks = build_subcategory_remark_context(subcategory_averages)
             
             # Update or create manager record
             manager_data = {
@@ -1761,6 +2354,9 @@ async def update_manager_aggregation_saas(company_id: str, manager_name: str):
                 "total_assessments": total_assessments,
                 "category_averages": category_averages,
                 "category_totals": category_totals,
+                "subcategory_averages": subcategory_averages,
+                "subcategory_totals": subcategory_totals,
+                "subcategory_remarks": subcategory_remarks,
                 "assessment_summaries": assessment_summaries,
                 "confidence_score": confidence_score,
                 "first_assessment": agg["first_assessment"],
@@ -1785,10 +2381,10 @@ async def update_manager_aggregation_saas(company_id: str, manager_name: str):
                 manager_data["created_at"] = datetime.utcnow()
                 await async_managers.insert_one(manager_data)
             
-            print(f"✅ Updated manager aggregation: {manager_name} ({total_assessments} assessments)")
+            print(f"âœ… Updated manager aggregation: {manager_name} ({total_assessments} assessments)")
             
     except Exception as e:
-        print(f"❌ Error updating manager aggregation: {e}")
+        print(f"âŒ Error updating manager aggregation: {e}")
 
 # ==================== LEGACY ENDPOINTS ====================
 @app.post("/webhooks/google-form")
@@ -1844,7 +2440,7 @@ async def google_form_webhook(
         }
         
     except Exception as e:
-        print(f"❌ Error processing Google Form: {e}")
+        print(f"âŒ Error processing Google Form: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # ==================== VISUALIZATION FUNCTIONS ====================
@@ -1904,7 +2500,7 @@ def create_triangular_chart(manager_data: dict, company_avg: dict = None) -> str
             bgcolor='white'
         ),
         title=dict(
-            text="360° Assessment Triangle",
+            text="360Â° Assessment Triangle",
             font=dict(size=16),
             x=0.5
         ),
@@ -1940,8 +2536,8 @@ async def internal_error_handler(request: Request, exc: HTTPException):
 @app.on_event("startup")
 async def startup_event():
     """Run on application startup"""
-    print("🚀 360° Manager Assessment SaaS Platform starting up...")
-    print(f"📊 Database: {raw_responses.database.name}")
+    print("ðŸš€ 360Â° Manager Assessment SaaS Platform starting up...")
+    print(f"ðŸ“Š Database: {raw_responses.database.name}")
     
     # Create indexes
     create_indexes()
@@ -1949,12 +2545,16 @@ async def startup_event():
     # Check database health
     health = await check_database_health()
     if health["status"] == "healthy":
-        print("✅ Database connection: Healthy")
+        print("âœ… Database connection: Healthy")
     else:
-        print(f"⚠️  Database connection: {health.get('error', 'Unknown error')}")
+        print(f"âš ï¸  Database connection: {health.get('error', 'Unknown error')}")
     
-    print("✅ Startup complete. System ready to receive requests.")
+    print("âœ… Startup complete. System ready to receive requests.")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    host = os.getenv("HOST", "127.0.0.1")
+    port = int(os.getenv("PORT", "8000"))
+    reload_enabled = os.getenv("DEV_RELOAD", "false").lower() == "true"
+    uvicorn.run(app, host=host, port=port, reload=reload_enabled)
+

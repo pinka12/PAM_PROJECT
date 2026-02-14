@@ -185,6 +185,9 @@ class ManagerInDB(BaseDocument, ManagerBase):
         "tasking": 0,
         "tending": 0
     })
+    subcategory_averages: Dict[str, float] = Field(default_factory=dict)
+    subcategory_totals: Dict[str, int] = Field(default_factory=dict)
+    subcategory_remarks: Dict[str, Any] = Field(default_factory=dict)
     confidence_score: int = 0
     first_assessment: Optional[datetime] = None
     last_assessment: Optional[datetime] = None
@@ -230,6 +233,9 @@ class ManagerResponse(BaseModel):
     total_assessments: int
     category_averages: Dict[str, float]
     category_totals: Dict[str, int]
+    subcategory_averages: Dict[str, float] = {}
+    subcategory_totals: Dict[str, int] = {}
+    subcategory_remarks: Dict[str, Any] = {}
     confidence_score: int
     first_assessment: Optional[datetime]
     last_assessment: Optional[datetime]
@@ -257,6 +263,9 @@ class AssessmentUpdate(BaseModel):
     answers: Optional[Dict[str, str]] = None
     category_scores: Optional[Dict[str, int]] = None
     category_averages: Optional[Dict[str, float]] = None
+    subcategory_scores: Optional[Dict[str, int]] = None
+    subcategory_averages: Optional[Dict[str, float]] = None
+    subcategory_remarks: Optional[Dict[str, Any]] = None
     overall_score: Optional[float] = None
 
 class AssessmentInDB(BaseDocument, AssessmentBase):
@@ -272,6 +281,9 @@ class AssessmentInDB(BaseDocument, AssessmentBase):
         "tasking": 0.0,
         "tending": 0.0
     })
+    subcategory_scores: Dict[str, int] = Field(default_factory=dict)
+    subcategory_averages: Dict[str, float] = Field(default_factory=dict)
+    subcategory_remarks: Dict[str, Any] = Field(default_factory=dict)
     overall_score: float = 0.0
     submission_time: datetime = Field(default_factory=datetime.utcnow)
     session_id: str
@@ -316,6 +328,9 @@ class AssessmentResponse(BaseModel):
     respondent_role: Optional[str]
     category_scores: Dict[str, int]
     category_averages: Dict[str, float]
+    subcategory_scores: Dict[str, int] = {}
+    subcategory_averages: Dict[str, float] = {}
+    subcategory_remarks: Dict[str, Any] = {}
     overall_score: float
     submission_time: datetime
     session_id: str
@@ -374,6 +389,9 @@ class LegacyManager(BaseModel):
     reporting_to: Optional[str] = None
     category_averages: Optional[Dict[str, float]] = None
     category_totals: Optional[Dict[str, int]] = None
+    subcategory_averages: Optional[Dict[str, float]] = None
+    subcategory_totals: Optional[Dict[str, int]] = None
+    subcategory_remarks: Optional[Dict[str, Any]] = None
     confidence_score: Optional[int] = None
     first_assessment: Optional[datetime] = None
     last_assessment: Optional[datetime] = None
